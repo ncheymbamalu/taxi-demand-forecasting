@@ -17,7 +17,7 @@ INGEST_CONFIG: dict[str, list[str]] = OmegaConf.to_container(load_config().inges
 
 
 def validate_data(data: pd.DataFrame, year: int, month: int) -> pd.DataFrame:
-    """Returns a pd.DataFrame containing only records (taxi rides) for the 
+    """Returns a pd.DataFrame containing only records (taxi rides) for the
     specified year and month, that's also free of null values and duplicates
 
     Args:
@@ -33,25 +33,22 @@ def validate_data(data: pd.DataFrame, year: int, month: int) -> pd.DataFrame:
         last_day: int = calendar.monthrange(year, month)[1]
         end: pd.Timestamp = pd.Timestamp(f"{year}-{month:02d}-{last_day}") + pd.Timedelta(days=1)
         return (
-            data
-            .assign(pickup_datetime=pd.to_datetime(data["tpep_pickup_datetime"]))
-            [
-                (pd.to_datetime(data["tpep_pickup_datetime"]) >= start) &
-                (pd.to_datetime(data["tpep_pickup_datetime"]) < end)
+            data.assign(pickup_datetime=pd.to_datetime(data["tpep_pickup_datetime"]))[
+                (pd.to_datetime(data["tpep_pickup_datetime"]) >= start)
+                & (pd.to_datetime(data["tpep_pickup_datetime"]) < end)
             ]
             .dropna(subset=["tpep_pickup_datetime", "PULocationID"])
             .drop_duplicates(subset=["tpep_pickup_datetime", "PULocationID"], keep="first")
             .rename({"PULocationID": "location_id"}, axis=1)
             .sort_values(["location_id", "pickup_datetime"])
-            .reset_index(drop=True)
-            [INGEST_CONFIG.get("raw_columns")]
+            .reset_index(drop=True)[INGEST_CONFIG.get("raw_columns")]
         )
     except Exception as e:
         raise e
 
 
 def preprocess_data(data: pd.DataFrame) -> pd.DataFrame:
-    """Returns a pd.DataFrame containing taxi rides recorded at 
+    """Returns a pd.DataFrame containing taxi rides recorded at
     regularly spaced hourly timestamps, for each unique location ID
 
     Args:
@@ -82,9 +79,9 @@ def preprocess_data(data: pd.DataFrame) -> pd.DataFrame:
 
 
 def download_file(year: int, month: int) -> pd.DataFrame:
-    """Downloads a single file of raw data from the 'NYC trip data' URL, 
-    validates, pre-processes, and returns it as a pd.DataFrame containing 
-    taxi rides recorded at regularly spaced hourly timestamps, for each 
+    """Downloads a single file of raw data from the 'NYC trip data' URL,
+    validates, pre-processes, and returns it as a pd.DataFrame containing
+    taxi rides recorded at regularly spaced hourly timestamps, for each
     unique location ID
 
     Args:
@@ -96,8 +93,7 @@ def download_file(year: int, month: int) -> pd.DataFrame:
         response: Response = requests.get(os.path.join(Config.URL, filename))
         if response.status_code == 200:
             logging.info(
-                "Downloading, validating, and pre-processing %s", 
-                os.path.join(Config.URL, filename)
+                "Downloading, validating, and pre-processing %s", os.path.join(Config.URL, filename)
             )
             return (
                 pd.read_parquet(os.path.join(Config.URL, filename))
