@@ -86,45 +86,70 @@ def split_data(
     except Exception as e:
         raise e
 
-
-def train_model(data: pd.DataFrame) -> NaiveForecast | XGBRegressor | LGBMRegressor:
-    """Trains and evaluates select ML models and returns the one that produces
-    the 'best' evaluation metrics, i.e., lowest RMSE and highest R²
+def train_model(
+    data: pd.DataFrame, 
+    non_features: list[str] = ["location_id", "pickup_datetime"], 
+    target: str = "target", 
+    n_folds: int = 5
+) -> NaiveForecast | XGBRegressor | LGBMRegressor:
+    """Trains and evaluates select ML models and returns the one that produces 
+    the lowest average RMSE across 'n_folds'
 
     Args:
         data (pd.DataFrame): Tabular, ML-ready dataset
+        non_features (list[str], optional): List of columns to exclude from training. 
+        Defaults to ["location_id", "pickup_datetime"].
+        target (str, optional): Column name of the target variable. Defaults to "target".
+        n_folds: (int, optional): Number of folds used to train and evaluate each model.
+        Defaults to 5.
 
     Returns:
-        NaiveForecast | XGBRegressor | LGBMRegressor: Model that produces the lowest RMSE
-        and highest R²
+        NaiveForecast | XGBRegressor | LGBMRegressor: Model that produces the lowest 
+        average RMSE across 'n_folds'
     """
     try:
-        # split 'data' into train and test sets
-        x_train, y_train, x_test, y_test = split_data(data)
+        # create the feature matrix and target vector
+        feature_matrix: pd.DataFrame = data.drop(non_features + [target], axis=1)
+        target_vector: pd.Series = data[target]
 
         # a dictionary of models to train and evaluate
         models: dict[str, NaiveForecast | XGBRegressor | LGBMRegressor] = {
             "Baseline": NaiveForecast(),
-            "XGBoost": XGBRegressor(n_jobs=-1),
-            "LightGBM": LGBMRegressor(verbosity=-1, n_jobs=-1),
+            "XGBoost": XGBRegressor(n_jobs=-1, early_stopping_rounds=50),
+            "LightGBM": LGBMRegressor(verbosity=-1, n_jobs=-1, early_stopping_rounds=50),
         }
 
-        # an empty dictionary that will map each model to its evaluation metrics
+        # an empty dictionary to map each model to its average evaluation metric (RMSE)
         report: dict[str, dict[str, float]] = {}
+        
+        # iterate over each model and train/evaluate it on n_folds
         for model_name, model in tqdm(models.items()):
-            if isinstance(model, NaiveForecast):
-                report[model_name] = compute_metrics(y_test, model.predict(x_test))
-            else:
-                model.fit(x_train, y_train)
-                report[model_name] = compute_metrics(y_test, model.predict(x_test))
-
-        # extract the model that produced the lowest RMSE and highest R²
+            horizon: int = int(feature_matrix.shape[0] / (n_folds + 1))
+            train_indices: list[int] = [horizon * i for i in range(1, n_folds + 1)]
+            val_indices: list[int] = [idx + horizon for idx in train_indices]
+            val_indices[-1] = max(val_indices[-1], feature_matrix.shape[0])
+            
+            # an empty list to store each fold's evaluation metric (RMSE)
+            eval_metrics: list[float] = [] 
+            for train_idx, val_idx in zip(train_indices, val_indices):
+                x_train: pd.DataFrame = feature_matrix.iloc[:train_idx, :]
+                y_train: pd.Series = target_vector.iloc[:train_idx]
+                x_val: pd.DataFrame = feature_matrix.iloc[train_idx:val_idx, :]
+                y_val: pd.Series = target_vector.iloc[train_idx:val_idx]
+                if isinstance(model, NaiveForecast):
+                    metric: float = compute_metrics(y_val, model.predict(x_val)).get("rmse")
+                elif isinstance(model, XGBRegressor):
+                    model.fit(x_train, y_train, eval_set=[(x_val, y_val)], verbose=False)
+                    metric: float = compute_metrics(y_val, model.predict(x_val)).get("rmse")
+                else:
+                    model.fit(x_train, y_train, eval_set=[(x_val, y_val)])
+                    metric: float = compute_metrics(y_val, model.predict(x_val)).get("rmse")
+                eval_metrics.append(metric)
+            report[model_name] = np.mean(eval_metrics)
         best_model: str = (
-            pd.DataFrame.from_dict(report, orient="index")
-            .sort_values(["rmse", "r_squared"], ascending=[True, False])
-            .reset_index()
-            .rename({"index": "model"}, axis=1)
-            .iloc[0]["model"]
+            pd.DataFrame.from_dict(report, orient="index", columns=["rmse"])
+            .sort_values("rmse")
+            .index[0]
         )
         return models.get(best_model)
     except Exception as e:
