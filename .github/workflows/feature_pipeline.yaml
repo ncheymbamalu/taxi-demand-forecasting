@@ -8,22 +8,21 @@ on:
   workflow_dispatch:
 
 env:
-  PYTHON_VERSION: 3.10
-  POETRY_VERSION: 1.8.3
   POETRY_URL: https://install.python-poetry.org
+  POETRY_VERSION: 1.8.3
 
 jobs:
   feature_pipeline:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo content
+      - name: Check out repo content
         uses: actions/checkout@v4
 
       - name: Cache Poetry cache
         uses: actions/cache@v3
         with:
           path: ~/.cache/pypoetry
-          key: poetry-cache-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ env.POETRY_VERSION }}
+          key: poetry-cache-${{ runner.os }}-3.10-${{ env.POETRY_VERSION }} # 3.10 is Python version
 
       - name: Set up Python 
         uses: actions/setup-python@v5
@@ -38,7 +37,7 @@ jobs:
       - name: Install dependencies
         run: poetry install
 
-      - name: Run feature pipeline script
+      - name: Execute feature pipeline
         env:
           HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
         run: make features
