@@ -1,4 +1,4 @@
-"""A script that connects to a """
+"""A script that connects to Hopsworks"""
 import os
 
 from typing import Any
