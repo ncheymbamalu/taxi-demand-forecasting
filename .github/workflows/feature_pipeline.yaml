@@ -25,10 +25,10 @@ jobs:
           path: ~/.cache/pypoetry
           key: poetry-cache-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ env.POETRY_VERSION }}
 
-      - name: Set up Python ${{ env.PYTHON_VERSION }}
+      - name: Set up Python 
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: '3.10'
 
       - name: Install Poetry
         run: |
