@@ -19,7 +19,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Cache Poetry cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pypoetry
           key: poetry-cache-${{ runner.os }}-3.10-${{ env.POETRY_VERSION }} # 3.10 is Python version
