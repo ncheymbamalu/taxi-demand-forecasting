@@ -73,64 +73,60 @@ def split_data(
         feature matrices and target vectors
     """
     try:
-        split_idx: int = data.sample(frac=train_size).shape[0]
-        split_ts: pd.Timestamp = data.loc[split_idx, "pickup_datetime"]
+        date_range: list[pd.Timestamp] = sorted(data["pickup_datetime"].unique())
+        cutoff_idx: int = int(round(len(date_range) * train_size))
+        cutoff: pd.Timestamp = date_range[cutoff_idx]
         features: list[str] = ["hour", "day_of_week"] + [
             col for col in data.columns if "lag" in col
         ]
-        x_train: pd.DataFrame = data.query(f"pickup_datetime < '{str(split_ts)}'")[features]
-        y_train: pd.Series = data.query(f"pickup_datetime < '{str(split_ts)}'")[target]
-        x_test: pd.DataFrame = data.query(f"pickup_datetime >= '{str(split_ts)}'")[features]
-        y_test: pd.Series = data.query(f"pickup_datetime >= '{str(split_ts)}'")[target]
+        x_train: pd.DataFrame = data.query(f"pickup_datetime < '{str(cutoff)}'")[features]
+        y_train: pd.Series = data.query(f"pickup_datetime < '{str(cutoff)}'")[target]
+        x_test: pd.DataFrame = data.query(f"pickup_datetime >= '{str(cutoff)}'")[features]
+        y_test: pd.Series = data.query(f"pickup_datetime >= '{str(cutoff)}'")[target]
         return x_train, y_train, x_test, y_test
     except Exception as e:
         raise e
 
+
 def train_model(
-    data: pd.DataFrame, 
-    non_features: list[str] = ["location_id", "pickup_datetime"], 
-    target: str = "target", 
-    n_folds: int = 5
-) -> NaiveForecast | XGBRegressor | LGBMRegressor:
-    """Trains and evaluates select ML models and returns the one that produces 
-    the lowest average RMSE across 'n_folds'
+    data: pd.DataFrame, target: str = "target", n_folds: int = 5,
+) -> XGBRegressor | LGBMRegressor:
+    """Trains and evaluates select ML models and returns the one that produces the lowest
+    average RMSE across 'n_folds'
 
     Args:
         data (pd.DataFrame): Tabular, ML-ready dataset
-        non_features (list[str], optional): List of columns to exclude from training. 
-        Defaults to ["location_id", "pickup_datetime"].
         target (str, optional): Column name of the target variable. Defaults to "target".
         n_folds: (int, optional): Number of folds used to train and evaluate each model.
         Defaults to 5.
 
     Returns:
-        NaiveForecast | XGBRegressor | LGBMRegressor: Model that produces the lowest 
-        average RMSE across 'n_folds'
+        XGBRegressor | LGBMRegressor: Model that produces the lowest average RMSE
     """
     try:
         # create the feature matrix and target vector
-        feature_matrix: pd.DataFrame = data.drop(non_features + [target], axis=1)
+        non_features: list[str] = ["location_id", "pickup_datetime"] + [target]
+        feature_matrix: pd.DataFrame = data.drop(non_features, axis=1)
         target_vector: pd.Series = data[target]
 
         # a dictionary of models to train and evaluate
         models: dict[str, NaiveForecast | XGBRegressor | LGBMRegressor] = {
-            "Baseline": NaiveForecast(),
             "XGBoost": XGBRegressor(n_jobs=-1, early_stopping_rounds=50),
             "LightGBM": LGBMRegressor(verbosity=-1, n_jobs=-1, early_stopping_rounds=50),
         }
 
         # an empty dictionary to map each model to its average evaluation metric (RMSE)
         report: dict[str, dict[str, float]] = {}
-        
-        # iterate over each model and train/evaluate it on n_folds
+
+        # iterate over each model and train/evaluate it on 'n_folds' of data
         for model_name, model in tqdm(models.items()):
             horizon: int = int(feature_matrix.shape[0] / (n_folds + 1))
             train_indices: list[int] = [horizon * i for i in range(1, n_folds + 1)]
             val_indices: list[int] = [idx + horizon for idx in train_indices]
             val_indices[-1] = max(val_indices[-1], feature_matrix.shape[0])
-            
+
             # an empty list to store each fold's evaluation metric (RMSE)
-            eval_metrics: list[float] = [] 
+            eval_metrics: list[float] = []
             for train_idx, val_idx in zip(train_indices, val_indices):
                 x_train: pd.DataFrame = feature_matrix.iloc[:train_idx, :]
                 y_train: pd.Series = target_vector.iloc[:train_idx]
@@ -176,7 +172,7 @@ def objective(trial: Trial) -> float:
         hyperparams: dict[str, Trial] = {
             "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3),
             "num_iterations": trial.suggest_int("num_iterations", 10, 1000),
-            # "num_leaves": trial.suggest_int("num_leaves", 2, 256),
+            "num_leaves": trial.suggest_int("num_leaves", 2, 256),
             "min_sum_hessian_in_leaf": trial.suggest_int("min_sum_hessian_in_leaf", 0, 50),
         }
 
@@ -225,7 +221,7 @@ def optimize_model() -> LGBMRegressor:
         model: LGBMRegressor = LGBMRegressor(**default_params)
 
         # create the study and optimize the model's hyperparameters
-        model_name: str = model.__str__().split("(")[0]
+        model_name: str = model.__class__.__name__
         study: Study = optuna.create_study(
             study_name=f"{model_name} hyperparameter tuning", direction="minimize"
         )
