@@ -218,7 +218,7 @@ def objective(trial: Trial) -> float:
         raise e
 
 
-def optimize_model() -> XGBRegressor | LGBMRegressor:
+def optimize_model() -> LGBMRegressor:
     try:
         # instantiate an object of type, 'LGBMRegressor'
         default_params: dict[str, int | str] = TRAIN_CONFIG.get("LGBMRegressor")
