@@ -1,4 +1,4 @@
-"""A script to transform a 1-D time series into a tabular, ML-ready dataset"""
+"""A script that transform a univariate time series into a tabular, ML-ready dataset"""
 
 import random
 

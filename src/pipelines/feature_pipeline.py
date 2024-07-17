@@ -1,4 +1,4 @@
-"""A script to uploads data to Hopsworks"""
+"""A script that upload data to Hopsworks"""
 
 from datetime import datetime, timezone
 

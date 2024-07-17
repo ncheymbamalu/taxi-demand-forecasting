@@ -1,4 +1,4 @@
-"""A script to download, validate, and pre-process raw NYC taxi rides data"""
+"""A script that downloads, validates, and pre-processes raw NYC taxi rides data"""
 
 import calendar
 import os

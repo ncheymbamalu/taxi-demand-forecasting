@@ -1,4 +1,4 @@
-"""A script to train, optimize, and evaluate select machine learning models"""
+"""A script that trains, optimizes, and evaluates select machine learning models"""
 
 import numpy as np
 import optuna
