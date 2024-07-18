@@ -7,16 +7,20 @@ ingest:
     - pickup_datetime
     - rides
 train:
-  XGBRegressor:
-    objective: reg:squarederror 
-    eval_metric: rmse 
-    early_stopping_rounds: 50 
-    n_jobs: -1
+  CatBoostRegressor:
+    loss_function: RMSE
+    silent: True # catboost's version of 'verbosity'
+    thread_count: -1 # catboost's version of 'n_jobs'
   LGBMRegressor:
     objective: regression
     metric: rmse
     early_stopping_rounds: 50
     verbosity: -1
+    n_jobs: -1
+  XGBRegressor:
+    objective: reg:squarederror 
+    eval_metric: rmse 
+    early_stopping_rounds: 50 
     n_jobs: -1
 hopsworks:
   project: taxi_demand_forecasting

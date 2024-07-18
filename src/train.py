@@ -4,6 +4,7 @@ import numpy as np
 import optuna
 import pandas as pd
 
+from catboost import CatBoostRegressor
 from lightgbm import LGBMRegressor
 from omegaconf import OmegaConf
 from optuna import Study, Trial
@@ -90,7 +91,7 @@ def split_data(
 
 def train_model(
     data: pd.DataFrame, target: str = "target", n_folds: int = 5,
-) -> XGBRegressor | LGBMRegressor:
+) -> CatBoostRegressor | LGBMRegressor | XGBRegressor:
     """Trains and evaluates select ML models and returns the one that produces the lowest
     average RMSE across 'n_folds'
 
@@ -101,7 +102,8 @@ def train_model(
         Defaults to 5.
 
     Returns:
-        XGBRegressor | LGBMRegressor: Model that produces the lowest average RMSE
+        CatBoostRegressor | LGBMRegressor | XGBRegressor: Model that produces the lowest 
+        average RMSE
     """
     try:
         # create the feature matrix and target vector
@@ -110,11 +112,12 @@ def train_model(
         target_vector: pd.Series = data[target]
 
         # a dictionary of models to train and evaluate
-        models: dict[str, NaiveForecast | XGBRegressor | LGBMRegressor] = {
-            "XGBoost": XGBRegressor(n_jobs=-1, early_stopping_rounds=50),
-            "LightGBM": LGBMRegressor(verbosity=-1, n_jobs=-1, early_stopping_rounds=50),
+        models: dict[str, LGBMRegressor | XGBRegressor] = {
+            "CatBoost": CatBoostRegressor(**TRAIN_CONFIG.get("CatBoostRegressor")),
+            "LightGBM": LGBMRegressor(**TRAIN_CONFIG.get("LGBMRegressor")),
+            "XGBoost": XGBRegressor(**TRAIN_CONFIG.get("XGBRegressor"))
         }
-
+        
         # an empty dictionary to map each model to its average evaluation metric (RMSE)
         report: dict[str, dict[str, float]] = {}
 
@@ -132,13 +135,20 @@ def train_model(
                 y_train: pd.Series = target_vector.iloc[:train_idx]
                 x_val: pd.DataFrame = feature_matrix.iloc[train_idx:val_idx, :]
                 y_val: pd.Series = target_vector.iloc[train_idx:val_idx]
-                if isinstance(model, NaiveForecast):
+                if isinstance(model, CatBoostRegressor):
+                    model.fit(
+                        x_train,
+                        y_train,
+                        eval_set=[(x_val, y_val)],
+                        early_stopping_rounds=50,
+                        verbose=False
+                    )
                     metric: float = compute_metrics(y_val, model.predict(x_val)).get("rmse")
-                elif isinstance(model, XGBRegressor):
-                    model.fit(x_train, y_train, eval_set=[(x_val, y_val)], verbose=False)
+                elif isinstance(model, LGBMRegressor):
+                    model.fit(x_train, y_train, eval_set=[(x_val, y_val)])
                     metric: float = compute_metrics(y_val, model.predict(x_val)).get("rmse")
                 else:
-                    model.fit(x_train, y_train, eval_set=[(x_val, y_val)])
+                    model.fit(x_train, y_train, eval_set=[(x_val, y_val)], verbose=False)
                     metric: float = compute_metrics(y_val, model.predict(x_val)).get("rmse")
                 eval_metrics.append(metric)
             report[model_name] = np.mean(eval_metrics)

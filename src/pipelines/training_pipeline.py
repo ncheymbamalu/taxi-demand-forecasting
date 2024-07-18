@@ -9,6 +9,7 @@ import hopsworks
 import pandas as pd
 import polars as pl
 
+from catboost import CatBoostRegressor
 from hopsworks.project import Project
 from hsfs.feature_group import FeatureGroup
 from hsml.model_registry import ModelRegistry
@@ -48,11 +49,19 @@ def main() -> None:
             )
 
             # train and evaluate the model
-            model: XGBRegressor | LGBMRegressor = train_model(data)
+            model: CatBoostRegressor | LGBMRegressor | XGBRegressor = train_model(data)
             (
-                model.fit(x_train, y_train, eval_set=[(x_test, y_test)], verbose=False)
-                if isinstance(model, XGBRegressor)
+                model.fit(
+                    x_train,
+                    y_train,
+                    eval_set=[(x_test, y_test)],
+                    early_stopping_rounds=50,
+                    verbose=False
+                )
+                if isinstance(model, CatBoostRegressor)
                 else model.fit(x_train, y_train, eval_set=[(x_test, y_test)])
+                if isinstance(model, LGBMRegressor)
+                else model.fit(x_train, y_train, eval_set=[(x_test, y_test)], verbose=False)
             )
             metrics: dict[str, float] = compute_metrics(y_test, model.predict(x_test))
 

@@ -1,4 +1,4 @@
-"""A script that connects to Hopsworks"""
+"""A script containing functions that return objects that connect to Hopsworks"""
 
 import os
 
