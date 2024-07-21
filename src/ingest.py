@@ -176,19 +176,15 @@ def load_taxi_zones() -> gpd.GeoDataFrame:
             os.remove(data_dir / zip_file)
             
             # read in ~/data/taxi_zones/taxi_zones.shp as a gpd.GeoDataFrame
-            output_cols: list[str] = [
-                "object_id", 
-                "shape_length", 
-                "shape_area", 
-                "zone", 
-                "location_id", 
-                "borough", 
-                "geometry"
-            ]
             gdf: gpd.GeoDataFrame = gpd.read_file(
                 data_dir / zip_file.replace(".zip", "") / zip_file.replace("zip", "shp")
             )
-            return gdf.rename(dict(zip(gdf.columns, output_cols)), axis=1).to_crs("epsg: 4326")
+            return (
+                gdf
+                .rename(dict(zip(gdf.columns, INGEST_CONFIG.get("taxi_zone_columns"))), axis=1)
+                .to_crs("epsg: 4326")
+                [["location_id", "zone", "geometry"]]
+            )
         else:
             logging.info("%s is not available", Config.SHAPEFILES_URL)
     except Exception as e:

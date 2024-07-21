@@ -6,6 +6,14 @@ ingest:
     - location_id
     - pickup_datetime
     - rides
+  taxi_zone_columns:
+    - object_id 
+    - shape_length 
+    - shape_area 
+    - zone 
+    - location_id 
+    - borough 
+    - geometry
 train:
   CatBoostRegressor:
     loss_function: RMSE

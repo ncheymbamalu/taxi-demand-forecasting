@@ -32,7 +32,7 @@ def tabularize_data(data: pd.DataFrame, max_lag: int = 24) -> pd.DataFrame:
         # an empty list to store the tabular pd.DataFrames, one per location ID
         dfs: list[pd.DataFrame] = []
         for location_id in tqdm(data["location_id"].unique()):
-            # extract the lag features
+            # create the lag features
             lags: list[pd.DataFrame] = [
                 (
                     data.query(f"location_id == {location_id}")
@@ -44,7 +44,7 @@ def tabularize_data(data: pd.DataFrame, max_lag: int = 24) -> pd.DataFrame:
                 for lag in reversed(range(1, max_lag + 1))
             ]
 
-            # extract the window features, i.e., average lag features
+            # create the window features, i.e., average lag features
             avg_lags: list[pd.DataFrame] = [
                 (
                     pd.concat(lags, axis=1)
