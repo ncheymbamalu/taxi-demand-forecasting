@@ -37,13 +37,12 @@ def get_feature_store() -> FeatureStore:
 
 
 def get_feature_group() -> FeatureGroup:
-    """Connects to the Hopsworks 'taxi_demand_forecasting' project's
-    Feature Store, and returns an object that points to its Feature Group
-    named, 'univariate_time_series'
+    """Connects to the Hopsworks 'taxi_demand_forecasting' project's Feature Store, 
+    and returns an object that points to its 'univariate_time_series' Feature Group
 
     Returns:
-        FeatureGroup: Object that points to the 'taxi_demand_forecasting'
-        project's 'univariate_time_series' Feature Group
+        FeatureGroup: Object that points to the 'taxi_demand_forecasting' project's 
+        'univariate_time_series' Feature Group
     """
     try:
         feature_store: FeatureStore = get_feature_store()

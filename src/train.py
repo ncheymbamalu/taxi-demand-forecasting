@@ -1,4 +1,4 @@
-"""A script that trains, optimizes, and evaluates select machine learning models"""
+"""A script that trains, optimizes, and evaluates select ML models"""
 
 import numpy as np
 import optuna
@@ -12,6 +12,7 @@ from tqdm import tqdm
 from xgboost import XGBRegressor
 
 from src.config import Config, load_config
+from src.logger import logging
 
 TRAIN_CONFIG: dict[str, dict[str, int | str]] = OmegaConf.to_container(load_config().train)
 
@@ -22,17 +23,16 @@ class NaiveForecast:
     def __str__(self):
         return "NaiveForecast"
 
-    def predict(self, feature_matrix: pd.DataFrame) -> np.ndarray:
+    def predict(self, data: pd.DataFrame) -> np.ndarray:
         """Returns the naive forecast
 
         Args:
-            feature_matrix (pd.DataFrame): Tabular dataset containing datetime
-            features, window features (average lag features), and lag features.
+            data (pd.DataFrame): Dataset containing the 1st lagged values.
 
         Returns:
             np.ndarray: Naive forecast
         """
-        return feature_matrix["lag_1"].values
+        return data["lag_1"].values
 
 
 def compute_metrics(y: pd.Series | np.ndarray, yhat: pd.Series | np.ndarray) -> dict[str, float]:
@@ -65,7 +65,8 @@ def split_data(
     """Splits 'data' into train and test sets
 
     Args:
-        data (pd.DataFrame): Tabular, ML-ready dataset
+        data (pd.DataFrame): Dataset containing datetime features, window features 
+        (average lag features), lag features, and the target
         train_size (float): Percentage of data used for training. Defaults to 0.8.
         target (str, optional): Column name of the target variable. Defaults to "target".
 
@@ -96,7 +97,8 @@ def train_model(
     average RMSE across 'n_folds'
 
     Args:
-        data (pd.DataFrame): Tabular, ML-ready dataset
+        data (pd.DataFrame): Dataset containing datetime features, window features 
+        (average lag features), lag features, and the target
         target (str, optional): Column name of the target variable. Defaults to "target".
         n_folds: (int, optional): Number of folds used to train and evaluate each model.
         Defaults to 5.
@@ -107,28 +109,29 @@ def train_model(
     """
     try:
         # create the feature matrix and target vector
-        non_features: list[str] = ["location_id", "pickup_datetime"] + [target]
+        non_features: list[str] = ["location_id", "pickup_datetime", target]
         feature_matrix: pd.DataFrame = data.drop(non_features, axis=1)
         target_vector: pd.Series = data[target]
 
         # a dictionary of models to train and evaluate
-        models: dict[str, LGBMRegressor | XGBRegressor] = {
+        models: dict[str, CatBoostRegressor | LGBMRegressor | XGBRegressor] = {
             "CatBoost": CatBoostRegressor(**TRAIN_CONFIG.get("CatBoostRegressor")),
             "LightGBM": LGBMRegressor(**TRAIN_CONFIG.get("LGBMRegressor")),
             "XGBoost": XGBRegressor(**TRAIN_CONFIG.get("XGBRegressor"))
         }
         
-        # an empty dictionary to map each model to its average evaluation metric (RMSE)
+        # an empty dictionary to map each trained model to its average validation set RMSE
         report: dict[str, dict[str, float]] = {}
 
         # iterate over each model and train/evaluate it on 'n_folds' of data
         for model_name, model in tqdm(models.items()):
+            logging.info("Training initiated for the %s.", model.__class__.__name__)
             horizon: int = int(feature_matrix.shape[0] / (n_folds + 1))
             train_indices: list[int] = [horizon * i for i in range(1, n_folds + 1)]
             val_indices: list[int] = [idx + horizon for idx in train_indices]
             val_indices[-1] = max(val_indices[-1], feature_matrix.shape[0])
 
-            # an empty list to store each fold's evaluation metric (RMSE)
+            # an empty list to store each fold's validation set RMSE
             eval_metrics: list[float] = []
             for train_idx, val_idx in zip(train_indices, val_indices):
                 x_train: pd.DataFrame = feature_matrix.iloc[:train_idx, :]
@@ -151,11 +154,22 @@ def train_model(
                     model.fit(x_train, y_train, eval_set=[(x_val, y_val)], verbose=False)
                     metric: float = compute_metrics(y_val, model.predict(x_val)).get("rmse")
                 eval_metrics.append(metric)
+            
+            # update the 'models' dictionary by replacing the initial, untrained model with its
+            # trained version
+            models[model_name] = model
+            
+            # save the trained model's average validation set RMSE
             report[model_name] = np.mean(eval_metrics)
+            
         best_model: str = (
             pd.DataFrame.from_dict(report, orient="index", columns=["rmse"])
             .sort_values("rmse")
             .index[0]
+        )
+        logging.info(
+            "Training complete, the %s produced the lowest validation RMSE.",
+            models.get(best_model).__class__.__name__
         )
         return models.get(best_model)
     except Exception as e:

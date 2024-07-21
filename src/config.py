@@ -4,7 +4,8 @@ from omegaconf import DictConfig, OmegaConf
 
 
 class Config:
-    URL: str = "https://d37ci6vzurychx.cloudfront.net/trip-data"
+    RAW_DATA_URL: str = "https://d37ci6vzurychx.cloudfront.net/trip-data"
+    SHAPEFILES_URL: str = "https://d37ci6vzurychx.cloudfront.net/misc/taxi_zones.zip"
     HOME_DIR: PosixPath = Path(__file__).parent.parent
     DATA_DIR: PosixPath = HOME_DIR / "data"
     ARTIFACTS_DIR: PosixPath = HOME_DIR / "artifacts"

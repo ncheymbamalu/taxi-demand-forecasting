@@ -33,3 +33,5 @@ hopsworks:
       - unix_epoch_ms
     event_time: unix_epoch_ms
     online_enabled: True
+  model_registry:
+    model_name: one_step_forecaster
