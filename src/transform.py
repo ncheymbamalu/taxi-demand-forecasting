@@ -91,10 +91,10 @@ def tabularize_data(data: pd.DataFrame, max_lag: int = 24) -> pd.DataFrame:
     
 
 def fetch_and_transform() -> pd.DataFrame:
-    """Fetches the latest NYC taxi demand data from the 'taxi_demand_forecasting' project's 
-    'univariate_time_series' Feature Group, then transforms it into a machine learning-ready 
-    dataset containing datetime features, window features (average lag features), lag features, 
-    and the target, and returns it as a pd.DataFrame 
+    """Fetches the latest NYC taxi demand data from the Hopsworks 'taxi_demand_forecasting' 
+    project's 'univariate_time_series' Feature Group, then transforms it into a machine 
+    learning-ready dataset containing datetime features, window features (average lag features), 
+    lag features, and the target, and returns it as a pd.DataFrame 
     
     Returns:
         pd.DataFrame: Machine learning-ready dataset containing features and labels

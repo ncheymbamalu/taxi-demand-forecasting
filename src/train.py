@@ -155,8 +155,8 @@ def train_model(
                     metric: float = compute_metrics(y_val, model.predict(x_val)).get("rmse")
                 eval_metrics.append(metric)
             
-            # update the 'models' dictionary by replacing the initial, untrained model with its
-            # trained version
+            # update the 'models' dictionary by replacing the initial, untrained model with its ...
+            # trained and evaluated version
             models[model_name] = model
             
             # save the trained model's average validation set RMSE

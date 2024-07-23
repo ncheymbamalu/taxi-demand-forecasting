@@ -3,7 +3,7 @@
 import os
 import pickle
 
-from pathlib import Path, PosixPath
+from pathlib import PosixPath
 
 import hopsworks
 import pandas as pd
@@ -15,13 +15,12 @@ from hopsworks.project import Project
 from hsfs.feature_group import FeatureGroup
 from hsml.model_registry import ModelRegistry
 from hsml.model_schema import ModelSchema, Schema
-from hsml.sklearn.model import Model
 from lightgbm import LGBMRegressor
 from xgboost import XGBRegressor
 
 from src.config import Config
 from src.feature_store_api import HOPSWORKS_CONFIG
-from src.inference import fetch_model, generate_forecast
+from src.inference import generate_forecast
 from src.logger import logging
 from src.train import compute_metrics, split_data, train_model
 from src.transform import tabularize_data
@@ -46,7 +45,7 @@ def upload_model() -> None:
             .get_or_create_feature_group(**HOPSWORKS_CONFIG.get("feature_group"))
         )
         
-        # load the latest NYC taxi demand data from the Feature Group
+        # fetch the latest NYC taxi demand data from the Feature Group
         data: pd.DataFrame = feature_group.read()
         if data.empty:
             logging.info(
@@ -183,4 +182,5 @@ def evaluate_model() -> None:
 
 
 if __name__ == "__main__":
+    # upload_model()
     evaluate_model()

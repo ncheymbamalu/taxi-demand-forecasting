@@ -1,13 +1,13 @@
 """A script that uploads the latest NYC taxi demand data to Hopsworks"""
 
+import os
+
 from datetime import datetime, timezone
 
+import hopsworks
 import pandas as pd
-import polars as pl
 
-from hsfs.feature_group import FeatureGroup
-
-from src.feature_store_api import get_feature_group
+from src.feature_store_api import HOPSWORKS_CONFIG
 from src.ingest import fetch_and_preprocess
 from src.logger import logging
 
@@ -16,19 +16,26 @@ END: pd.Timestamp = pd.Timestamp(datetime.now(timezone.utc)).floor("H") - pd.Tim
 START: pd.Timestamp = END - pd.Timedelta(days=28)
 
 
-def main() -> None:
+def upload_data() -> None:
     # fetch, validate, pre-process, and filter the raw data
     df: pd.DataFrame = fetch_and_preprocess(START, END)
 
-    # upload the validated/pre-processed/filtered data to Hopsworks
-    feature_group: FeatureGroup = get_feature_group()
+    # upload the 'df' pd.DataFrame's data to Hopsworks
     logging.info(
         "Uploading NYC taxi demand data to Hopsworks, Project Name: %s, Feature Group: %s",
-        feature_group._get_project_name(),
-        feature_group.name,
+        HOPSWORKS_CONFIG.get("project"), HOPSWORKS_CONFIG.get("feature_group").get("name")
     )
-    feature_group.insert(df, write_options={"wait_for_job": False})
+    (  
+    hopsworks
+    .login(
+        project=HOPSWORKS_CONFIG.get("project"),
+        api_key_value=os.getenv("HOPSWORKS_API_KEY")
+    )
+    .get_feature_store()
+    .get_or_create_feature_group(**HOPSWORKS_CONFIG.get("feature_group"))
+    .insert(df, write_options={"wait_for_job": False})
+)
 
 
 if __name__ == "__main__":
-    main()
+    upload_data()
