@@ -2,7 +2,7 @@ name: training-pipeline
 
 on:
   schedule:
-    - cron: '0 0 * * 0' # pipeline will run every Sunday at midnight
+    - cron: '0 0 * * *' # pipeline will run every day at midnight
 
   # allows the pipeline to be executed manually from GitHub
   workflow_dispatch:

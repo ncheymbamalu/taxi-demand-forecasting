@@ -139,8 +139,8 @@ def evaluate_model() -> None:
         # NOTE: this pd.DataFrame contains each location ID's actual taxi rides, ...
         # for the current hour
         actual_records: list[pd.DataFrame] = [
-            data.query(f"location_id == {location_id}").iloc[-1:, :]
-            for location_id in sorted(data["location_id"].unique())
+            data.query(f"location_id == {location_id} & pickup_datetime == '{pickup_datetime}'")
+            for location_id, pickup_datetime in latest_timestamps.items()
         ]
         data = pd.concat(actual_records, axis=0, ignore_index=True)
         
