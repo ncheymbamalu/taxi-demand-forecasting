@@ -62,7 +62,7 @@ def compute_metrics(y: pd.Series | np.ndarray, yhat: pd.Series | np.ndarray) -> 
 def split_data(
     data: pd.DataFrame, train_size: float = 0.8, target: str = "target"
 ) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series]:
-    """Splits 'data' into train and test sets
+    """Splits the 'data' parameter into train and test sets
 
     Args:
         data (pd.DataFrame): Dataset containing datetime features, window features 
@@ -93,8 +93,8 @@ def split_data(
 def train_model(
     data: pd.DataFrame, target: str = "target", n_folds: int = 5,
 ) -> CatBoostRegressor | LGBMRegressor | XGBRegressor:
-    """Trains and evaluates select ML models and returns the one that produces the lowest
-    average RMSE across 'n_folds'
+    """Trains and evaluates select ML models and returns the one that produces 
+    the lowest average validation set RMSE
 
     Args:
         data (pd.DataFrame): Dataset containing datetime features, window features 
@@ -104,8 +104,8 @@ def train_model(
         Defaults to 5.
 
     Returns:
-        CatBoostRegressor | LGBMRegressor | XGBRegressor: Model that produces the lowest 
-        average RMSE
+        CatBoostRegressor | LGBMRegressor | XGBRegressor: Trained and evaluted model that
+        produced the lowest average validation set RMSE
     """
     try:
         # create the feature matrix and target vector
@@ -162,6 +162,7 @@ def train_model(
             # save the trained model's average validation set RMSE
             report[model_name] = np.mean(eval_metrics)
             
+        # get the model that produced the lowest validation set RMSE
         best_model: str = (
             pd.DataFrame.from_dict(report, orient="index", columns=["rmse"])
             .sort_values("rmse")

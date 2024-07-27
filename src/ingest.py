@@ -3,10 +3,6 @@
 import calendar
 import os
 
-from pathlib import Path, PosixPath
-from zipfile import ZipFile
-
-import geopandas as gpd
 import pandas as pd
 import polars as pl
 import requests
@@ -22,8 +18,8 @@ INGEST_CONFIG: dict[str, list[str]] = OmegaConf.to_container(load_config().inges
 
 
 def validate_data(data: pd.DataFrame, year: int, month: int) -> pd.DataFrame:
-    """Returns a pd.DataFrame containing only records (taxi rides) for the
-    specified year and month, that's also free of null values and duplicates
+    """Returns a pd.DataFrame containing records (taxi rides) for the
+    specified year and month, that's free of null values and duplicates
 
     Args:
         data (pd.DataFrame): Raw data
@@ -53,14 +49,14 @@ def validate_data(data: pd.DataFrame, year: int, month: int) -> pd.DataFrame:
 
 
 def preprocess_data(data: pd.DataFrame) -> pd.DataFrame:
-    """Returns a pd.DataFrame containing taxi rides recorded at
-    regularly spaced hourly timestamps, for each unique location ID
+    """Returns a pd.DataFrame containing taxi rides recorded at an
+    an hourly frequency, for each location ID
 
     Args:
         data (pd.DataFrame): Validated data
 
     Returns:
-        pd.DataFrame: Pre-rocessed data
+        pd.DataFrame: Pre-processed data
     """
     try:
         # a list of pre-processed pd.DataFrames, one per location ID
@@ -112,9 +108,9 @@ def download_file(year: int, month: int) -> pd.DataFrame:
 
 
 def fetch_and_preprocess(start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
-    """Fetches raw data, then validates, pre-processes, filters, and returns 
-    it as a pd.DataFrame containing NYC taxi rides, recorded at regularly 
-    sampled milliseconds from the Unix epoch 
+    """Fetches raw data from the 'NYC trip data' URL, then validates, pre-processes, 
+    filters, and returns it as a pd.DataFrame containing NYC taxi rides, recorded at 
+    regularly sampled milliseconds from the Unix epoch 
 
     Args:
         start (pd.Timestamp): Starting timestamp used to filter the data
@@ -145,47 +141,5 @@ def fetch_and_preprocess(start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame
             .rename({"pickup_datetime": "unix_epoch_ms"})
             .to_pandas()
         )
-    except Exception as e:
-        raise e
-
-    
-def load_taxi_zones() -> gpd.GeoDataFrame:
-    """Downloads a zip file, unzips its contents (shapefiles of NYC taxi zones), 
-    reads in and returns the shapefile as a gpd.GeoDataFrame
-
-    Returns:
-        gpd.GeoDataFrame: Dataset containing geographic information about NYC taxi zones
-    """
-    try:
-        response: Response = requests.get(Config.SHAPEFILES_URL)
-        if response.status_code == 200:
-            # create the 'data' sub-directory, ~/data, if it doesn't already exist
-            data_dir: PosixPath = Config.DATA_DIR
-            data_dir.mkdir(parents=True, exist_ok=True)
-            
-            # get the name of the zip file, which is 'taxi_zones.zip'
-            zip_file: str = Path(Config.SHAPEFILES_URL).name
-            
-            # download the zip file to ~/data/taxi_zones.zip
-            open(data_dir / zip_file, "wb").write(response.content)
-            
-            # upzip the zip file and save its contents (shape files) to ~/data/taxi_zones/
-            ZipFile(data_dir / zip_file, "r").extractall(data_dir / zip_file.replace(".zip", ""))
-            
-            # remove the zip file, ~/data/taxi_zones.zip
-            os.remove(data_dir / zip_file)
-            
-            # read in ~/data/taxi_zones/taxi_zones.shp as a gpd.GeoDataFrame
-            gdf: gpd.GeoDataFrame = gpd.read_file(
-                data_dir / zip_file.replace(".zip", "") / zip_file.replace("zip", "shp")
-            )
-            return (
-                gdf
-                .rename(dict(zip(gdf.columns, INGEST_CONFIG.get("taxi_zone_columns"))), axis=1)
-                .to_crs("epsg: 4326")
-                [["location_id", "zone", "geometry"]]
-            )
-        else:
-            logging.info("%s is not available", Config.SHAPEFILES_URL)
     except Exception as e:
         raise e

@@ -22,7 +22,7 @@ def upload_data() -> None:
 
     # upload the 'df' pd.DataFrame's data to Hopsworks
     logging.info(
-        "Uploading NYC taxi demand data to Hopsworks, Project Name: %s, Feature Group: %s",
+        "Uploading the latest taxi demand data to Hopsworks, Project Name: %s, Feature Group: %s",
         HOPSWORKS_CONFIG.get("project"), HOPSWORKS_CONFIG.get("feature_group").get("name")
     )
     (  

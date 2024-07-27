@@ -42,4 +42,5 @@ hopsworks:
     event_time: unix_epoch_ms
     online_enabled: True
   model_registry:
-    model_name: one_step_forecaster
+    model_name: forecasting_model
+    version: 1

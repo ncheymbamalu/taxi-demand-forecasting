@@ -10,38 +10,10 @@ from plotly.graph_objects import Figure
 from pydeck import Deck, Layer, ViewState
 
 from src.inference import generate_forecast
-from src.ingest import load_taxi_zones
-from src.transform import fetch_and_transform, plot_record
+from src.transform import fetch_and_transform
+from src.utils import color_code_forecasts, load_taxi_zones, plot_record
 
 N_STEPS: int = 4
-
-
-def color_code_forecasts(data: pd.DataFrame) -> pd.DataFrame:
-    """Color codes the forecasted taxi demand with different shades of 
-    green, where lighter shades correspond to a larger forecasted demand 
-    and darker shades correspond to a smaller forecasted demand
-
-    Args:
-        data (pd.DataFrame): Dataset containing the forecasted taxi demand
-
-    Returns:
-        pd.DataFrame: Dataset containing the forecasted taxi demand and the
-        corresponding RGB colors
-    """
-    try:
-        normalized_forecasts: list[float] = [
-            (forecast - data["forecast"].min()) / 
-            (data["forecast"].max() - data["forecast"].min())
-            for forecast in data["forecast"]
-        ]
-        rgb_colors: list[tuple[int, ...]] = [
-            tuple((0, int(round(normalized_forecast * 255)), 0))
-            for normalized_forecast in normalized_forecasts
-        ]
-        return data.assign(fill_color=rgb_colors)
-    except Exception as e:
-        raise e
-
 
 # set the page layout
 st.set_page_config(layout="wide")
@@ -80,7 +52,7 @@ with st.spinner("Downloading the taxi zone shape files"):
     gdf: gpd.GeoDataFrame = load_taxi_zones().merge(forecast, on="location_id")
     st.sidebar.write(":white_check_mark: Taxi zone shapefiles downloaded")
     progress_bar.progress(3 / N_STEPS)
-    print(gdf.query("location_id == 43"))
+    # print(gdf.query("location_id == 43"))
 
 # create the visualizations
 with st.spinner("Generating visualizations"):

@@ -1,13 +1,9 @@
 """A script that transforms hourly NYC taxi demand data into a tabular, ML-ready dataset"""
 
-import random
-
 import pandas as pd
 import polars as pl
-import plotly.express as px
 
 from hsfs.feature_group import FeatureGroup
-from plotly.graph_objects import Figure
 from tqdm import tqdm
 
 from src.feature_store_api import get_feature_group
@@ -15,20 +11,21 @@ from src.logger import logging
 
 
 def tabularize_data(data: pd.DataFrame, max_lag: int = 24) -> pd.DataFrame:
-    """Converts a pd.DataFrame containing a 1-D time series of validated and
-    pre-processed hourly taxi rides to a pd.DataFrame of lag features, window
-    features (average lag features), and the corresponding target
+    """Converts a pd.DataFrame containing a 1-D time series of validated and 
+    pre-processed NYC taxi rides recorded at an hourly frequency, to a pd.DataFrame 
+    containing datetime features, window features (average lag features), lag 
+    features, and the corresponding target
 
     Args:
         data (pd.DataFrame): Validated and pre-processed data
         max_lag (int, optional): Maximum number of lag features to create. Defaults to 24.
 
     Returns:
-        pd.DataFrame: Tabular, ML-ready dataset containing datetime features, window 
-        features (average lag features), lag features, and the corresponding target
+        pd.DataFrame: ML-ready dataset containing datetime features, window features 
+        (average lag features), lag features, and the corresponding target
     """
     try:
-        logging.info("Transforming the hourly taxi demand data into ML-ready features and labels.")
+        logging.info("Transforming the hourly taxi demand data into features and labels.")
         # an empty list to store the tabular pd.DataFrames, one per location ID
         dfs: list[pd.DataFrame] = []
         for location_id in tqdm(data["location_id"].unique()):
@@ -91,13 +88,14 @@ def tabularize_data(data: pd.DataFrame, max_lag: int = 24) -> pd.DataFrame:
     
 
 def fetch_and_transform() -> pd.DataFrame:
-    """Fetches the latest NYC taxi demand data from the Hopsworks 'taxi_demand_forecasting' 
-    project's 'univariate_time_series' Feature Group, then transforms it into a machine 
-    learning-ready dataset containing datetime features, window features (average lag features), 
-    lag features, and the target, and returns it as a pd.DataFrame 
+    """Fetches the latest validated and pre-processed NYC taxi demand data from the 
+    Hopsworks 'taxi_demand_forecasting' project's 'univariate_time_series' Feature Group, 
+    transforms it into an ML-ready dataset containing datetime features, window features 
+    (average lag features), lag features, and the target, and returns it as a pd.DataFrame 
     
     Returns:
-        pd.DataFrame: Machine learning-ready dataset containing features and labels
+        pd.DataFrame: ML-ready dataset containing datetime features, window features 
+        (average lag features), lag features, and the corresponding target
     """
     try:
         # connect to the project's Feature Group
@@ -112,7 +110,7 @@ def fetch_and_transform() -> pd.DataFrame:
                 feature_group.name,
             )
         else:
-            # transform the NYC taxi demand data into ML-ready features and labels
+            # transform the latest NYC taxi demand data into ML-ready features and labels
             return (
                 pl.from_pandas(data)
                 .with_columns(pl.from_epoch(pl.col("unix_epoch_ms"), time_unit="ms"))
@@ -121,63 +119,5 @@ def fetch_and_transform() -> pd.DataFrame:
                 .to_pandas()
                 .pipe(tabularize_data)
             )
-    except Exception as e:
-        raise e
-
-
-def plot_record(data: pd.DataFrame, location_id: int, plot_prediction: bool = False) -> Figure:
-    """Plots a single record (row) of lag features, the corresponding target, and 
-    prediction, if the 'plot_prediction' argument is True
-
-    Args:
-        data (pd.DataFrame): Dataset containing, at mininum, lag features and the
-        target (labels). The forecast (predictions) is optional.
-        location_id (int): The record's location ID
-        plot_prediction (bool): Boolean that determines whether or not to plot the 
-        prediction. Defaults to False.
-    """
-    try:
-        # inputs to the 'fig' object
-        idx: int = random.choice(data.query(f"location_id == {location_id}").index)
-        end: pd.Timestamp = data.loc[idx, "pickup_datetime"]
-        lag_cols: list[str] = [col for col in data.columns if col.startswith("lag")]
-        start: pd.Timestamp = end - pd.Timedelta(hours=len(lag_cols))
-        timestamps: pd.DatetimeIndex = pd.date_range(start, end, freq="H")
-
-        # instantiate the 'fig' object with the lag features
-        fig: Figure = px.line(
-            x=timestamps[:-1],
-            y=data.loc[idx, lag_cols],
-            color_discrete_sequence=["blue"],
-            labels={"x": "Datetime (UTC)", "y": "Number of taxi rides"},
-            template="plotly_dark",
-            markers=True,
-            title=f"Location ID: {location_id}, Pick-Up Time: {end}",
-        )
-
-        # add the target to the 'fig' object
-        fig.add_scatter(
-            x=[timestamps[-1]],
-            y=(
-                [data.loc[idx, "target"]]
-                if "target" in data.columns else [data.loc[idx, "forecast"]]
-            ),
-            line_color="green",
-            mode="markers",
-            marker_size=10,
-            name="Target" if "target" in data.columns else "Forecast",
-        )
-        
-        if plot_prediction:
-            # add the prediction to the 'fig' object
-            fig.add_scatter(
-                x=[timestamps[-1]],
-                y=[data.loc[idx, "forecast"]],
-                line_color="red",
-                mode="markers",
-                marker_size=10,
-                name="Forecast"
-            )
-        return fig
     except Exception as e:
         raise e
