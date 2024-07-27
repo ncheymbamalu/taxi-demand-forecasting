@@ -118,14 +118,21 @@ def evaluate_model() -> None:
         # transform it into features and labels
         data: pd.DataFrame = fetch_and_transform()
         
-        # extract the latest timestamp
-        latest_timestamp: pd.Timestamp = data["pickup_datetime"].max()
+        # a dictionary that maps each location ID to its latest timestamp
+        latest_timestamps: dict[str, pd.Timestamp] = {
+            location_id: data.query(f"location_id == {location_id}")["pickup_datetime"].max()
+            for location_id in sorted(data["location_id"].unique())
+        }
         
-        # generate the forecasted records
-        # NOTE: this pd.DataFrame contains each location ID's forecast/predicted taxi demand, ...
-        # for the current hour
+        # create the forecasted records
+        # NOTE: the 'forecast_data' pd.DataFrame contains each location ID's forecast, i.e., ...
+        # predicted taxi demand for the current hour
+        data_to_forecast: list[pd.DataFrame] = [
+            data.query(f"location_id == {location_id} & pickup_datetime < '{pickup_datetime}'")
+            for location_id, pickup_datetime in latest_timestamps.items()
+        ]
         forecast_data: pd.DataFrame = generate_forecast(
-            data.query(f"pickup_datetime < '{latest_timestamp}'")
+            pd.concat(data_to_forecast, axis=0, ignore_index=True)
         )
         
         # extract the actual records
@@ -137,9 +144,11 @@ def evaluate_model() -> None:
         ]
         data = pd.concat(actual_records, axis=0, ignore_index=True)
         
-        # merge the actual records with the forecasted records
-        data = data.merge(
-            forecast_data, how="inner", on=forecast_data.drop("forecast", axis=1).columns.tolist()
+        # merge the forecasted records with the actual records
+        data = (
+            forecast_data[["location_id", "forecast"]]
+            .merge(data[["location_id", "lag_1", "target"]], how="inner", on="location_id")
+            .drop("location_id", axis=1)
         )
         
         # compute the RMSE for both the naive forecast and one-step forecast
