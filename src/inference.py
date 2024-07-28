@@ -34,7 +34,10 @@ def fetch_model() -> CatBoostRegressor | LGBMRegressor | XGBRegressor:
         remote_model_dir: str = (
             project
             .get_model_registry()
-            .get_model(name=HOPSWORKS_CONFIG.get("model_registry").get("model_name"), version=1)
+            .get_model(
+                name=HOPSWORKS_CONFIG.get("model_registry").get("model_name"),
+                version=HOPSWORKS_CONFIG.get("model_registry").get("version")
+            )
             .download()
         )
         model: CatBoostRegressor | LGBMRegressor | XGBRegressor = pickle.load(
