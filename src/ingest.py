@@ -139,6 +139,7 @@ def fetch_and_preprocess(start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame
                 .dt.epoch(time_unit="ms")
             )
             .rename({"pickup_datetime": "unix_epoch_ms"})
+            .unique(subset=["location_id", "unix_epoch_ms"], keep="first", maintain_order=True)
             .to_pandas()
         )
     except Exception as e:
