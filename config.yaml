@@ -1,0 +1,12 @@
+hopsworks:
+  project: taxi_demand_forecasting
+  feature_group:
+    name: hourly_taxi_rides
+    version: 1
+    description: NYC taxi rides recorded in unix time (milliseconds), at an hourly frequency
+    primary_key:
+      - location_id
+      - unix_time_ms
+    event_time: unix_time_ms
+    online_enabled: True
+  
