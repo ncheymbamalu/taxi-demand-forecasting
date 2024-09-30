@@ -9,4 +9,3 @@ hopsworks:
       - unix_time_ms
     event_time: unix_time_ms
     online_enabled: True
-  

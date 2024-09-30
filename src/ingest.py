@@ -1,3 +1,5 @@
+"""A script that downloads, validates, and pre-processes raw NYC taxi rides data"""
+
 import os
 
 from datetime import datetime, timezone
@@ -9,7 +11,7 @@ from requests import Response
 from tqdm import tqdm
 
 from src.logger import logging
-from src.paths import PathConfig, load_config
+from src.paths import PathConfig
 
 
 def validate_data(data: pd.DataFrame, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
@@ -108,16 +110,3 @@ def download_data() -> pd.DataFrame:
             )
     except Exception as e:
         raise e
-
-
-if __name__ == "__main__":
-    df: pd.DataFrame = download_data()
-    print(
-        df
-        .assign(pickup_time=df["pickup_time"].astype(int) // 1_000_000)
-        .rename({"pickup_time": "unix_time_ms"}, axis=1)
-        .drop_duplicates(subset=["location_id", "unix_time_ms"], keep="first")
-        .sort_values(by=["location_id", "unix_time_ms"])
-        .reset_index(drop=True)
-        .head()
-    )

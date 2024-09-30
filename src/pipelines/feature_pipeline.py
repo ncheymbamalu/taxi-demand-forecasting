@@ -1,16 +1,10 @@
-import os
+"""A script that uploads the latest NYC taxi demand data to Hopsworks"""
 
-import hopsworks
 import pandas as pd
 
-from omegaconf import DictConfig
-
+from src.feature_store_api import HOPSWORKS_CONFIG, get_feature_group
 from src.ingest import download_data
 from src.logger import logging
-from src.paths import load_config
-
-
-HOPSWORKS_CONFIG: DictConfig = load_config().hopsworks
 
 
 def upload_data() -> None:
@@ -19,32 +13,23 @@ def upload_data() -> None:
     """
     try:
         # download, validate, and pre-process the raw data
-        df: pd.DataFrame = download_data()
-        df = (
-            df
-            .assign(pickup_time=df["pickup_time"].astype(int) // 1_000_000)
+        data: pd.DataFrame = download_data()
+        data = (
+            data
+            .assign(pickup_time=data["pickup_time"].astype(int) // 1_000_000)
             .rename({"pickup_time": "unix_time_ms"}, axis=1)
             .drop_duplicates(subset=["location_id", "unix_time_ms"], keep="first")
             .sort_values(by=["location_id", "unix_time_ms"])
             .reset_index(drop=True)
         )
-        
-        # write the 'df' pd.DataFrame's data to Hopsworks
+
+        # write the validated and pre-processed data to Hopsworks
         logging.info(
             "Uploading the latest NYC taxi demand data to Hopsworks, Project Name: %s, \
 Feature Group: %s",
             HOPSWORKS_CONFIG.project, HOPSWORKS_CONFIG.feature_group.name
         )
-        (
-            hopsworks
-            .login(
-                project=HOPSWORKS_CONFIG.project,
-                api_key_value=os.getenv("HOPSWORKS_API_KEY")
-            )
-            .get_feature_store()
-            .get_or_create_feature_group(**HOPSWORKS_CONFIG.feature_group)
-            .insert(df, write_options={"wait_for_job": False})
-        )
+        get_feature_group().insert(data, write_options={"wait_for_job": False})
     except Exception as e:
         raise e
 

@@ -5,7 +5,6 @@ from pathlib import PosixPath
 
 from src.paths import PathConfig
 
-
 LOG_FILE: str = f"{datetime.now().strftime('%m_%d_%Y_%H_%M_%S')}.log"
 LOGS_DIR: PosixPath = PathConfig.PROJECT_DIR / "logs"
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
