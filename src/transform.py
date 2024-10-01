@@ -90,12 +90,11 @@ def fetch_and_transform() -> pd.DataFrame:
         pd.DataFrame: Machine learning-ready data
     """
     try:
-        # load the latest NYC taxi demand data from the Feature Group
+        # load the latest NYC taxi demand data from Hopsworks
         data: pd.DataFrame = get_feature_group().read()
         if data.empty:
             logging.info(
-                "Invalid request. No data exists for the '%s' project's '%s' feature group. \
-Exiting the function.",
+                "Data not fetched. No data exists for Project Name: '%s', Feature Group: '%s'",
                 HOPSWORKS_CONFIG.project,
                 HOPSWORKS_CONFIG.feature_group.name,
             )

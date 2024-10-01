@@ -1,8 +1,7 @@
-"""A script that downloads, validates, and pre-processes raw NYC taxi rides data"""
+"""A script that downloads, validates, and pre-processes raw NYC taxi data"""
 
+import calendar
 import os
-
-from datetime import datetime, timezone
 
 import pandas as pd
 import requests
@@ -15,8 +14,8 @@ from src.paths import PathConfig
 
 
 def validate_data(data: pd.DataFrame, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
-    """Returns a null value and duplicate-free pd.DataFrame of irregularly sampled
-    NYC taxi rides between 'start' and 'end' inclusive
+    """Returns a pd.DataFrame of irregularly sampled NYC taxi rides between 'start'
+    and 'end' inclusive, that's free of null values and duplicate records
 
     Args:
         data (pd.DataFrame): Raw data
@@ -29,14 +28,11 @@ def validate_data(data: pd.DataFrame, start: pd.Timestamp, end: pd.Timestamp) ->
     try:
         return (
             data
-            .rename({"PULocationID": "location_id"}, axis=1)
-            .assign(
-                pickup_time=pd.to_datetime(data["tpep_pickup_datetime"]) + pd.Timedelta(days=366)
-            )
-            .query(f"pickup_time >= '{start}' and pickup_time <= '{end}'")
-            .dropna(subset=["location_id", "pickup_time"])
-            .drop_duplicates(subset=["location_id", "pickup_time"], keep="first")
-            .sort_values(["location_id", "pickup_time"])
+            .query(f"tpep_pickup_datetime >= '{start}' and tpep_pickup_datetime < '{end}'")
+            .dropna(subset=["PULocationID", "tpep_pickup_datetime"])
+            .drop_duplicates(subset=["PULocationID", "tpep_pickup_datetime"], keep="first")
+            .sort_values(["PULocationID", "tpep_pickup_datetime"])
+            .rename({"PULocationID": "location_id", "tpep_pickup_datetime": "pickup_time"}, axis=1)
             .reset_index(drop=True)
             [["location_id", "pickup_time"]]
         )
@@ -79,19 +75,20 @@ def preprocess_data(data: pd.DataFrame) -> pd.DataFrame:
         raise e
 
 
-def download_data() -> pd.DataFrame:
-    """Downloads a single file of raw data from the 'NYC trip data' URL, validates
-    and pre-processes it, and returns a pd.DataFrame containing NYC taxi rides
-    recorded at an hourly frequency, for each location ID
+def download_data(year: int, month: int) -> pd.DataFrame:
+    """Downloads raw data from the 'NYC trip data' URL, then validates, pre-processes,
+    and returns it as a pd.DataFrame containing NYC taxi rides recorded at an hourly
+    frequency, for each location ID
+
+    Args:
+        year (int): Raw data's recorded year
+        month (int): Raw data's recorded month
 
     Returns:
-        pd.DataFrame: Validated and pre-processed data
+        pd.DataFrame: Validated and pre-processed data if the raw data's URL is valid,
+        otherwise an empty pd.DataFrame
     """
     try:
-        end: pd.Timestamp = pd.Timestamp(datetime.now(timezone.utc)).replace(tzinfo=None).floor("H")
-        start: pd.Timestamp = end - pd.Timedelta(days=14)
-        year: int = (end - pd.Timedelta(days=366)).year
-        month: int = (end - pd.Timedelta(days=366)).month
         filename: str = f"yellow_tripdata_{year}-{month:02d}.parquet"
         response: Response = requests.get(os.path.join(PathConfig.RAW_DATA_URL, filename))
         if response.status_code == 200:
@@ -99,14 +96,20 @@ def download_data() -> pd.DataFrame:
                 "Downloading, validating, and pre-processing %s.",
                 os.path.join(PathConfig.RAW_DATA_URL, filename)
             )
+            start: pd.Timestamp = pd.Timestamp(f"{year}-{month:02d}-01")
+            last_day_of_month: int = calendar.monthrange(year, month)[1]
+            end: pd.Timestamp = (
+                pd.Timestamp(f"{year}-{month:02d}-{last_day_of_month}") + pd.Timedelta(days=1)
+            )
             return (
                 pd.read_parquet(os.path.join(PathConfig.RAW_DATA_URL, filename))
                 .pipe(validate_data, start, end)
                 .pipe(preprocess_data)
             )
-        else:
-            logging.info(
-                "%s is not available or download.", os.path.join(PathConfig.RAW_DATA_URL, filename)
-            )
+        logging.info(
+            "Invalid request. %s is not available to download.",
+            os.path.join(PathConfig.RAW_DATA_URL, filename)
+        )
+        return pd.DataFrame()
     except Exception as e:
         raise e

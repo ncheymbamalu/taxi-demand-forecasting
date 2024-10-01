@@ -9,3 +9,26 @@ hopsworks:
       - unix_time_ms
     event_time: unix_time_ms
     online_enabled: True
+  model_registry:
+    model_name: one_step_forecaster
+    version: 1
+train:
+  non_features:
+    - location_id
+    - pickup_time
+    - target
+  CatBoostRegressor:
+    loss_function: RMSE
+    silent: True # catboost's version of 'verbosity'
+    thread_count: -1 # catboost's version of 'n_jobs'
+  LGBMRegressor:
+    objective: regression
+    metric: rmse
+    early_stopping_rounds: 50
+    verbosity: -1
+    n_jobs: -1
+  XGBRegressor:
+    objective: reg:squarederror
+    eval_metric: rmse
+    early_stopping_rounds: 50
+    n_jobs: -1
