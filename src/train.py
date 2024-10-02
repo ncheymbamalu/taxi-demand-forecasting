@@ -1,16 +1,25 @@
 """A script that trains and evaluates select ML models"""
 
+import os
+import pickle
+
+from pathlib import PosixPath
+
 import numpy as np
 import pandas as pd
 
 from catboost import CatBoostRegressor
+from hsml.model_registry import ModelRegistry
+from hsml.model_schema import ModelSchema, Schema
 from lightgbm import LGBMRegressor
 from omegaconf import DictConfig
 from tqdm import tqdm
 from xgboost import XGBRegressor
 
+from src.feature_store_api import HOPSWORKS_CONFIG, get_project
 from src.logger import logging
-from src.paths import load_config
+from src.paths import PathConfig, load_config
+from src.transform import fetch_and_transform
 
 TRAIN_CONFIG: DictConfig = load_config().train
 
@@ -171,5 +180,62 @@ def train_model(
             "Training complete, the %s produced the lowest average validation set RMSE.", best_model
         )
         return models.get(best_model)
+    except Exception as e:
+        raise e
+
+
+def upload_model() -> None:
+    """Trains several ML models on the latest NYC taxi demand data, selects
+    the 'best' one, and uploads it to the Hopsworks project's Model Registry
+    """
+    try:
+        # fetch the latest validated and pre-processed data from Hopsworks, and ...
+        # transform it into machine learning-ready features and labels
+        data: pd.DataFrame = fetch_and_transform()
+
+        # train and evaluate several ML models and select the 'best' one
+        model: CatBoostRegressor | LGBMRegressor | XGBRegressor = train_model(data)
+
+        # get the test set feature matrix, 'x_test', and target vector, 'y_test'
+        split: pd.Timestamp = get_time_series_splits(data)[0][-1]
+        x_test: pd.DataFrame = (
+            data
+            .query(f"pickup_time > '{split}'")
+            .drop(["location_id", "pickup_time", "target"], axis=1)
+            .reset_index(drop=True)
+        )
+        y_test: pd.Series = data.query(f"pickup_time > '{split}'")["target"].reset_index(drop=True)
+
+        # compute the test set metrics (RMSE and R²)
+        metrics: dict[str, float] = compute_metrics(y_test, model.predict(x_test))
+
+        # save the model locally to ~/artifacts/model.pkl
+        artifacts_dir: PosixPath = PathConfig.ARTIFACTS_DIR
+        artifacts_dir.mkdir(parents=True, exist_ok=True)
+        pickle.dump(model, open(artifacts_dir / "model.pkl", "wb"))
+
+        # connect to the Hopsworks Model Registry
+        model_registry: ModelRegistry = get_project().get_model_registry()
+
+        # upload ~/artifacts/model.pkl to the Model Registry
+        logging.info(
+            "Uploading the '%s' to the '%s' project's Model Registry under the name, '%s'.",
+            model.__class__.__name__,
+            HOPSWORKS_CONFIG.project,
+            HOPSWORKS_CONFIG.model_registry.model_name
+        )
+        (
+            model_registry
+            .sklearn
+            .create_model(
+                name=HOPSWORKS_CONFIG.model_registry.model_name,
+                version=HOPSWORKS_CONFIG.model_registry.version,
+                metrics=metrics,
+                description=model.__class__.__name__,
+                input_example=x_test.sample(),
+                model_schema=ModelSchema(input_schema=Schema(x_test), output_schema=Schema(y_test))
+            )
+            .save(os.path.join(artifacts_dir, "model.pkl"))
+        )
     except Exception as e:
         raise e

@@ -47,11 +47,11 @@ def get_feature_store() -> FeatureStore:
 
 def get_feature_group() -> FeatureGroup:
     """Connects to the Hopsworks 'taxi_demand_forecasting' project's Feature Store,
-    and returns an object that points to its 'univariate_time_series' Feature Group
+    and returns an object that points to its 'hourly_taxi_rides' Feature Group
 
     Returns:
         FeatureGroup: Object that points to the 'taxi_demand_forecasting' project's
-        'univariate_time_series' Feature Group
+        'hourly_taxi_rides' Feature Group
     """
     try:
         return get_feature_store().get_or_create_feature_group(**HOPSWORKS_CONFIG.feature_group)
