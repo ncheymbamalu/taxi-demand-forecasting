@@ -6,7 +6,7 @@ authors = ["ncheymbamalu <nchey.learnings@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "3.10.14"
+python = ">3.10,<3.11"
 catboost = "1.2.5"
 discordwebhook = "1.0.3"
 fire = "0.6.0"
