@@ -32,3 +32,12 @@ train:
     eval_metric: rmse
     early_stopping_rounds: 50
     n_jobs: -1
+utils:
+  taxi_zone_columns:
+    - object_id
+    - shape_length
+    - shape_area
+    - zone
+    - location_id
+    - borough
+    - geometry

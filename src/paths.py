@@ -8,7 +8,7 @@ class PathConfig:
     DATA_DIR: PosixPath = PROJECT_DIR / "data"
     ARTIFACTS_DIR: PosixPath = PROJECT_DIR / "artifacts"
     RAW_DATA_URL: str = "https://d37ci6vzurychx.cloudfront.net/trip-data"
-    TAXI_ZONE_SHAPEFILES_URL: str = "https://d37ci6vzurychx.cloudfront.net/misc/taxi_zones.zip"
+    TAXI_ZONES_SHAPEFILES_URL: str = "https://d37ci6vzurychx.cloudfront.net/misc/taxi_zones.zip"
 
 
 def load_config(path: PosixPath = PathConfig.PROJECT_DIR / "config.yaml") -> DictConfig:
