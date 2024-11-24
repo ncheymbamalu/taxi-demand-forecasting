@@ -1,4 +1,4 @@
-"""A script that trains and evaluates select ML models"""
+"""This module provides functionality to train and evaluate select ML models."""
 
 import os
 import pickle
@@ -16,9 +16,9 @@ from omegaconf import DictConfig
 from tqdm import tqdm
 from xgboost import XGBRegressor
 
+from src.config import Paths, load_config
 from src.feature_store_api import HOPSWORKS_CONFIG, get_project
-from src.logger import logging
-from src.paths import PathConfig, load_config
+from src.logger import logger
 from src.transform import fetch_and_transform
 
 TRAIN_CONFIG: DictConfig = load_config().train
@@ -126,7 +126,7 @@ def train_model(
 
         # for each model ...
         for name, model in tqdm(models.items()):
-            logging.info("Training initiated for the %s.", name)
+            logger.info(f"Training initiated for the {name}.")
             # create an empty list to store its evaluation metrics, one per train/validation split
             eval_metrics: list[float] = []
 
@@ -176,8 +176,8 @@ def train_model(
             .sort_values("rmse")
             .index[0]
         )
-        logging.info(
-            "Training complete, the %s produced the lowest average validation set RMSE.", best_model
+        logger.info(
+            f"Training complete, the {best_model} produced the lowest average validation set RMSE."
         )
         return models.get(best_model)
     except Exception as e:
@@ -210,7 +210,7 @@ def upload_model() -> None:
         metrics: dict[str, float] = compute_metrics(y_test, model.predict(x_test))
 
         # save the model locally to ~/artifacts/model.pkl
-        artifacts_dir: PosixPath = PathConfig.ARTIFACTS_DIR
+        artifacts_dir: PosixPath = Paths.ARTIFACTS_DIR
         artifacts_dir.mkdir(parents=True, exist_ok=True)
         pickle.dump(model, open(artifacts_dir / "model.pkl", "wb"))
 
@@ -218,11 +218,9 @@ def upload_model() -> None:
         model_registry: ModelRegistry = get_project().get_model_registry()
 
         # upload ~/artifacts/model.pkl to the Model Registry
-        logging.info(
-            "Uploading the '%s' to the '%s' project's Model Registry under the name, '%s'.",
-            model.__class__.__name__,
-            HOPSWORKS_CONFIG.project,
-            HOPSWORKS_CONFIG.model_registry.model_name
+        logger.info(
+            f"Uploading the '{model.__class__.__name__}' to the '{HOPSWORKS_CONFIG.project}' \
+project's Model Registry, under the name, '{HOPSWORKS_CONFIG.model_registry.model_name}'."
         )
         (
             model_registry

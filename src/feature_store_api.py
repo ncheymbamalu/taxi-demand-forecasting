@@ -1,4 +1,4 @@
-"""A script containing functions that return Python objects that connect to the Hopsworks API"""
+"""This module provides functionality for connecting to the Hopsworks API."""
 
 import os
 
@@ -10,9 +10,9 @@ from hsfs.feature_group import FeatureGroup
 from hsfs.feature_store import FeatureStore
 from omegaconf import DictConfig
 
-from src.paths import PathConfig, load_config
+from src.config import Paths, load_config
 
-load_dotenv(PathConfig.PROJECT_DIR / ".env")
+load_dotenv(Paths.ENV)
 
 HOPSWORKS_CONFIG: DictConfig = load_config().hopsworks
 

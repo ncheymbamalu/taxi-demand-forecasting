@@ -6,7 +6,7 @@ authors = ["ncheymbamalu <nchey.learnings@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">3.10,<3.11"
+python = "3.10.14"
 catboost = "1.2.5"
 discordwebhook = "1.0.3"
 fire = "0.6.0"
@@ -15,6 +15,7 @@ hopsworks = "3.7.0"
 ipykernel = "^6.29.2"
 jupyter = "^1.0.0"
 lightgbm = "4.4.0"
+loguru = "^0.7.2"
 nbformat = "5.10.4"
 numpy = "1.25.2"
 omegaconf = "2.3.0"

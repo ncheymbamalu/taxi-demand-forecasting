@@ -1,4 +1,4 @@
-"""A script that contains helper functions for ~/src/app.py"""
+"""This module contains helper functions that are used in ~/src/app.py."""
 
 import os
 
@@ -13,8 +13,8 @@ import requests
 from plotly.graph_objects import Figure
 from requests import Response
 
-from src.logger import logging
-from src.paths import PathConfig, load_config
+from src.config import Paths, load_config
+from src.logger import logger
 
 
 def plot_record(data: pd.DataFrame, location_id: int, plot_forecast: bool = False) -> Figure:
@@ -91,7 +91,7 @@ def color_code_forecasts(data: pd.DataFrame) -> pd.DataFrame:
     """
     try:
         normalized_forecasts: pd.Series = (
-            (data["forecast"] - data["forecast"].min()) / 
+            (data["forecast"] - data["forecast"].min()) /
             (data["forecast"].max() - data["forecast"].min())
         )
         rgb_greens: list[tuple[int, ...]] = [
@@ -107,14 +107,14 @@ def download_taxi_zones() -> None:
     the contents, and saves them to ~/data/taxi_zones/
     """
     try:
-        response: Response = requests.get(PathConfig.TAXI_ZONES_SHAPEFILES_URL)
+        response: Response = requests.get(Paths.TAXI_ZONES_SHAPEFILES_URL)
         if response.status_code == 200:
             # create ~/data/ if it doesn't already exist
-            data_dir: PosixPath = PathConfig.DATA_DIR
+            data_dir: PosixPath = Paths.DATA_DIR
             data_dir.mkdir(parents=True, exist_ok=True)
 
             # get the url's base name, which is 'taxi_zones.zip'
-            base_name: str = Path(PathConfig.TAXI_ZONES_SHAPEFILES_URL).name
+            base_name: str = Path(Paths.TAXI_ZONES_SHAPEFILES_URL).name
 
             # save the url's contents to ~/data/taxi_zones.zip
             open(data_dir / base_name, "wb").write(response.content)
@@ -125,9 +125,7 @@ def download_taxi_zones() -> None:
             # delete ~/data/taxi_zones.zip
             os.remove(data_dir / base_name)
         else:
-            logging.info(
-                "Invalid request. %s is not available.", PathConfig.TAXI_ZONES_SHAPEFILES_URL
-            )
+            logger.info(f"Invalid request. {Paths.TAXI_ZONES_SHAPEFILES_URL} is not available.")
     except Exception as e:
         raise e
 
@@ -139,7 +137,7 @@ def read_taxi_zones() -> gpd.GeoDataFrame:
         gpd.GeoDataFrame: Dataset containing geographic information about NYC taxi zones
     """
     try:
-        shapefile: PosixPath = PathConfig.DATA_DIR / "taxi_zones" / "taxi_zones.shp"
+        shapefile: PosixPath = Paths.DATA_DIR / "taxi_zones" / "taxi_zones.shp"
         if os.path.exists(shapefile):
             gdf: gpd.GeoDataFrame = gpd.read_file(shapefile)
         else:

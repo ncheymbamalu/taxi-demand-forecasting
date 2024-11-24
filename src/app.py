@@ -1,4 +1,4 @@
-"""Streamlit web application"""
+"""This module generates the Streamlit web application."""
 
 from datetime import datetime, timezone
 

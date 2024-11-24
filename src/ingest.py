@@ -1,4 +1,4 @@
-"""A script that downloads, validates, and pre-processes raw NYC taxi data"""
+"""This module provides functionality to download, validate, and pre-process raw data."""
 
 import calendar
 import os
@@ -9,8 +9,8 @@ import requests
 from requests import Response
 from tqdm import tqdm
 
-from src.logger import logging
-from src.paths import PathConfig
+from src.config import Paths
+from src.logger import logger
 
 
 def validate_data(data: pd.DataFrame, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
@@ -90,11 +90,11 @@ def download_data(year: int, month: int) -> pd.DataFrame:
     """
     try:
         filename: str = f"yellow_tripdata_{year}-{month:02d}.parquet"
-        response: Response = requests.get(os.path.join(PathConfig.RAW_DATA_URL, filename))
+        response: Response = requests.get(os.path.join(Paths.RAW_DATA_URL, filename))
         if response.status_code == 200:
-            logging.info(
-                "Downloading, validating, and pre-processing %s.",
-                os.path.join(PathConfig.RAW_DATA_URL, filename)
+            logger.info(
+                f"Downloading, validating, and pre-processing \
+{os.path.join(Paths.RAW_DATA_URL, filename)}."
             )
             start: pd.Timestamp = pd.Timestamp(f"{year}-{month:02d}-01")
             last_day_of_month: int = calendar.monthrange(year, month)[1]
@@ -102,13 +102,13 @@ def download_data(year: int, month: int) -> pd.DataFrame:
                 pd.Timestamp(f"{year}-{month:02d}-{last_day_of_month}") + pd.Timedelta(days=1)
             )
             return (
-                pd.read_parquet(os.path.join(PathConfig.RAW_DATA_URL, filename))
+                pd.read_parquet(os.path.join(Paths.RAW_DATA_URL, filename))
                 .pipe(validate_data, start, end)
                 .pipe(preprocess_data)
             )
-        logging.info(
-            "Invalid request. %s is not available to download.",
-            os.path.join(PathConfig.RAW_DATA_URL, filename)
+        logger.info(
+            f"Invalid request. {os.path.join(Paths.RAW_DATA_URL, filename)} is not available to \
+download."
         )
         return pd.DataFrame()
     except Exception as e:

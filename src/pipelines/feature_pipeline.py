@@ -1,4 +1,4 @@
-"""A script that uploads the latest NYC taxi demand data to Hopsworks"""
+"""This module provides functionality for uploading the latest pre-processed data to Hopsworks."""
 
 from datetime import datetime, timezone
 
@@ -6,7 +6,7 @@ import pandas as pd
 
 from src.feature_store_api import HOPSWORKS_CONFIG, get_feature_group
 from src.ingest import download_data
-from src.logger import logging
+from src.logger import logger
 
 
 def upload_data() -> None:
@@ -40,10 +40,9 @@ def upload_data() -> None:
         )
 
         # write the validated and pre-processed data to Hopsworks
-        logging.info(
-            "Uploading the latest NYC taxi demand data to Hopsworks, Project Name: %s, \
-Feature Group: %s",
-            HOPSWORKS_CONFIG.project, HOPSWORKS_CONFIG.feature_group.name
+        logger.info(
+            f"Uploading the latest batch of NYC taxi demand data to Hopsworks, \
+Project Name: '{HOPSWORKS_CONFIG.project}', Feature Group: '{HOPSWORKS_CONFIG.feature_group.name}'"
         )
         get_feature_group().insert(data, write_options={"wait_for_job": False})
     except Exception as e:

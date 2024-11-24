@@ -1,11 +1,11 @@
-"""A script that transforms the NYC taxi demand data into ML-ready features and labels"""
+"""This module provides functionality to transform pre-processed data into features and labels."""
 
 import pandas as pd
 
 from tqdm import tqdm
 
 from src.feature_store_api import HOPSWORKS_CONFIG, get_feature_group
-from src.logger import logging
+from src.logger import logger
 
 
 def tabularize_data(data: pd.DataFrame, max_lag: int = 24) -> pd.DataFrame:
@@ -21,7 +21,7 @@ def tabularize_data(data: pd.DataFrame, max_lag: int = 24) -> pd.DataFrame:
         pd.DataFrame: Machine learning-ready data
     """
     try:
-        logging.info("Transforming the NYC taxi demand data into features and labels.")
+        logger.info("Transforming the NYC taxi demand data into features and labels.")
         # an empty list to store the tabular, ML-ready pd.DataFrames, one per location ID
         tabular_dfs: list[pd.DataFrame] = []
         for location_id in tqdm(sorted(data["location_id"].unique())):
@@ -93,10 +93,9 @@ def fetch_and_transform() -> pd.DataFrame:
         # load the latest NYC taxi demand data from Hopsworks
         data: pd.DataFrame = get_feature_group().read()
         if data.empty:
-            logging.info(
-                "Data not fetched. No data exists for Project Name: '%s', Feature Group: '%s'",
-                HOPSWORKS_CONFIG.project,
-                HOPSWORKS_CONFIG.feature_group.name,
+            logger.info(
+                f"Data not fetched. No data exists for Project Name: '{HOPSWORKS_CONFIG.project}', \
+Feature Group: '{HOPSWORKS_CONFIG.feature_group.name}'"
             )
         else:
             # transform the latest NYC taxi demand data into ML-ready features and labels

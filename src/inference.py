@@ -1,4 +1,4 @@
-"""A script that generates the one-step forecast"""
+"""This module provides functionality to generate the one-step forecast."""
 
 import pickle
 

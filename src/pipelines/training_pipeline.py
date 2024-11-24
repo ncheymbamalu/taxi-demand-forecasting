@@ -1,10 +1,10 @@
-"""A script that evaluates the current model on the latest data and replaces it if necessary"""
+"""This module provides functionality to evaluate the pipeline's current ML model."""
 
 import pandas as pd
 
 from src.feature_store_api import HOPSWORKS_CONFIG, get_project
 from src.inference import generate_forecast
-from src.logger import logging
+from src.logger import logger
 from src.train import NaiveForecast, compute_metrics, upload_model
 from src.transform import fetch_and_transform
 
@@ -58,7 +58,7 @@ def evaluate_model() -> None:
         # if the one-step forecast is worse than the naive forecast, then ...
         if one_step > naive:
             # delete the current model, its associated files, and metadata from Hopsworks
-            logging.info("The current forecasting model is unsatisfactory and will be replaced.")
+            logger.info("The current forecasting model is unsatisfactory and will be replaced.")
             (
                 get_project()
                 .get_model_registry()
@@ -72,7 +72,7 @@ def evaluate_model() -> None:
             # train and evaluate a new model and upload it to Hopsworks
             upload_model()
         else:
-            logging.info("The current forecasting model is fine.")
+            logger.info("The current forecasting model is fine.")
     except Exception as e:
         raise e
 

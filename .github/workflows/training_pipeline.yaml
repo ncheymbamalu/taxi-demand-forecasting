@@ -2,42 +2,42 @@ name: training-pipeline
 
 on:
   schedule:
-    - cron: '0 0 * * *' # pipeline will run every day at midnight
+    - cron: '0 * * * *' # pipeline will run every hour; https://crontab.guru/#0_*_*_*_*
 
   # allows the pipeline to be executed manually from GitHub
   workflow_dispatch:
 
-env:
-  POETRY_URL: https://install.python-poetry.org
-  POETRY_VERSION: 1.8.3
-
 jobs:
+
   training_pipeline:
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Check out repo content
+      - name: Check out repo
         uses: actions/checkout@v4
 
-      - name: Cache Poetry cache
-        uses: actions/cache@v4
+      - name: Set up Python 3.10.14
+        uses: actions/setup-python@v5 # https://github.com/actions/setup-python/releases
         with:
-          path: ~/.cache/pypoetry
-          key: poetry-cache-${{ runner.os }}-3.10-${{ env.POETRY_VERSION }} # 3.10 is Python version
+          python-version: '3.10.14'
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Install poetry
+        uses: snok/install-poetry@v1 # https://github.com/snok/install-poetry
         with:
-          python-version: '3.10'
+          virtualenvs-in-project: true
 
-      - name: Install Poetry
-        run: |
-          curl -sSL ${{ env.POETRY_URL }} | python - --version ${{ env.POETRY_VERSION }}
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      - name: Load cached dependencies
+        uses: actions/cache@v4 # https://github.com/actions/cache/releases
+        id: cached-dependencies
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
 
       - name: Install dependencies
-        run: poetry install
+        if: steps.cached-dependencies.outputs.cache-hit != 'true'
+        run: make install
 
       - name: Execute training pipeline
         env:
           HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
-        run: make training
+        run: make train

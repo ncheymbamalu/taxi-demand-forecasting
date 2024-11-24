@@ -131,6 +131,7 @@ dmypy.json
 # additional items to ignore
 .idea
 .DS_Store
+.gitignore
 data/
 logs/
 artifacts/

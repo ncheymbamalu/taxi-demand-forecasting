@@ -1,13 +1,25 @@
-.PHONY: features training frontend
+.PHONY: install check features train frontend clean runner_features runner_train runner_frontend
 
-# pushes the latest batch of validated and pre-processed NYC taxi demand data to Hopsworks
+install: pyproject.toml
+	poetry install
+
+check: install
+	poetry run flake8 src
+
 features:
 	poetry run python src/pipelines/feature_pipeline.py
 
-# evaluates the current model on the latest NYC taxi demand data and replaces it if necessary
-training:
+train:
 	poetry run python src/pipelines/training_pipeline.py
 
-# starts the Streamlit web application
 frontend:
 	poetry run streamlit run src/app.py
+
+clean:
+	rm -rf `find . -type d -name __pycache__`
+
+runner_features: check features clean
+
+runner_train: check train clean
+
+runner_frontend: check frontend clean

@@ -1,16 +1,13 @@
-import logging
+"""This module configures the project's logging."""
 
 from datetime import datetime
 from pathlib import PosixPath
 
-from src.paths import PathConfig
+from loguru import logger
 
-LOG_FILE: str = f"{datetime.now().strftime('%m_%d_%Y_%H_%M_%S')}.log"
-LOGS_DIR: PosixPath = PathConfig.PROJECT_DIR / "logs"
-LOGS_DIR.mkdir(parents=True, exist_ok=True)
+from src.config import Paths
 
-logging.basicConfig(
-    filename=LOGS_DIR / LOG_FILE,
-    format="[%(asctime)s] - %(pathname)s - %(lineno)d - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO,
-)
+logs_dir: PosixPath = Paths.PROJECT_DIR / "logs"
+logs_dir.mkdir(parents=True, exist_ok=True)
+log_file: str = f"{datetime.now().strftime('%m_%d_%Y_%H_%M_%S')}.log"
+logger.add(logs_dir / log_file)
