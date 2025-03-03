@@ -40,3 +40,6 @@ def load_config() -> DictConfig:
         return OmegaConf.load(Paths.CONFIG)
     except Exception as e:
         raise e
+
+
+data_config: DictConfig = load_config().data
