@@ -1,0 +1,22 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Added by DVC
+/artifacts
+
+# Additional items to ignore
+credentials.json
+.python-version
+.env
+.ruff_cache/
+logs/
+.idea
+.DS_Store
