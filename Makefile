@@ -18,9 +18,12 @@ clean:
 	rm -rf logs
 	rm -rf artifacts
 
+features:
+	uv run python src/pipelines/feature.py
+
 feature_pipeline:
 	dvc pull
-	uv run python src/pipelines/feature.py
+	make features
 	dvc add ./artifacts
 	git config user.name "github-actions"
 	git config user.email "github-actions@github.com"

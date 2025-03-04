@@ -114,7 +114,7 @@ def transform_data(
 
             # create the average lag features, i.e., window features
             start = step = 4
-            dfs: list[pl.DataFrame] = [
+            dfs = [
                 (
                     df_lags[:, -lag:]
                     .mean_horizontal()
