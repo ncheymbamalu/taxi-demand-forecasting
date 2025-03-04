@@ -3,6 +3,6 @@ data:
     - location_id
     - pickup_time
     - n_rides
-  target_columns: n_rides
-  timestamp_column: pickup_time
+  target_column: n_rides
+  temporal_column: pickup_time
   duration: 14
