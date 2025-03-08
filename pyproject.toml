@@ -7,21 +7,26 @@ requires-python = "==3.10.14"
 readme = "README.md"
 dependencies = [
     "httpx>=0.28.1",
+    "hyperopt>=0.2.7",
     "ipykernel>=6.29.5,<7",
     "jupyter>=1.0.0,<2",
+    "lightgbm>=4.6.0",
     "loguru>=0.7.2,<0.8",
     "matplotlib>=3.10.1",
+    "mrmr-selection>=0.2.8",
     "nbformat>=5.10.4",
     "notebook>=7.3.2",
-    "numpy>=2.2.3",
+    "numpy==1.26.4",
     "omegaconf>=2.3.0",
     "pandas>=2.2.3",
     "plotly>=6.0.0",
     "polars>=1.24.0",
     "pyarrow>=19.0.1",
     "python-dotenv>=1.0.1,<2",
+    "scikit-learn==1.2.2",
     "statsmodels>=0.14.4",
     "tqdm>=4.67.1",
+    "xgboost>=2.1.4",
 ]
 
 [dependency-groups]

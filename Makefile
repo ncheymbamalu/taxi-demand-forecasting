@@ -16,7 +16,6 @@ clean:
 	rm -rf `find . -type d -name catboost_info`
 	rm -rf .ruff_cache
 	rm -rf logs
-	rm -rf artifacts
 
 features:
 	uv run python src/pipelines/feature.py
@@ -32,3 +31,4 @@ feature_pipeline:
 	dvc push
 	git push
 	make clean
+	rm -rf artifacts

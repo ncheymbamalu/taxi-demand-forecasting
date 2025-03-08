@@ -43,3 +43,4 @@ def load_config() -> DictConfig:
 
 
 data_config: DictConfig = load_config().data
+model_config: DictConfig = load_config().model

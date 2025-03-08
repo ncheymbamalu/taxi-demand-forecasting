@@ -1,8 +1,17 @@
 data:
   columns:
-    - location_id
-    - pickup_time
-    - n_rides
+  - location_id
+  - pickup_time
+  - n_rides
+  duration: 14
   target_column: n_rides
   temporal_column: pickup_time
-  duration: 14
+model:
+  n_folds: 5
+  train_pct: 0.8
+  test_size: 4
+  xgbregressor:
+    objective: reg:squarederror
+    eval_metric: rmse
+    early_stopping_rounds: 50
+    n_jobs: -1
