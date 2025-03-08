@@ -65,7 +65,7 @@ jobs:
           git diff --staged --quiet || echo "changes==true" >> $GITHUB_ENV
 
       - name: Commit and push
-        if: env.changes == "true"
+        if: env.changes == 'true'
         run: |
           git commit -m "executing the training pipeline"
           dvc push
