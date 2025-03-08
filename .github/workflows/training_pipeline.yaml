@@ -1,0 +1,54 @@
+name: training-pipeline
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # pipeline will run every day at midnight; https://crontab.guru/#0_0_*_*_*
+
+  workflow_dispatch:
+
+jobs:
+
+  training_pipeline:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: write
+      repository-projects: write
+      id-token: write
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "pyproject.toml"
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Install DVC
+        uses: iterative/setup-dvc@v1
+
+      - name: Create credentials.json
+        env:
+          GDRIVE_CREDENTIALS: ${{ secrets.GDRIVE_CREDENTIALS }}
+        run: |
+          echo $GDRIVE_CREDENTIALS > credentials.json
+
+      - name: Configure DVC
+        run: >
+          uv run dvc remote modify gdrive --local
+          gdrive_service_account_json_file_path
+          credentials.json
+
+      - name: Execute pipeline
+        run: make training_pipeline
