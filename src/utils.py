@@ -271,7 +271,7 @@ def select_features(
 
 
 # --------------------------------------------------------------------------------------------------
-# Model building-related utility functions
+# Model-related utility functions
 # --------------------------------------------------------------------------------------------------
 def compute_metrics(y: np.ndarray | pl.Series, yhat: np.ndarray | pl.Series) -> dict[str, float]:
     """Computes the root mean squared error, RMSE, and coefficient of
@@ -584,5 +584,150 @@ def save_model(model: XGBRegressor) -> None:
     try:
         with open(Paths.MODEL, "wb") as file:
             pickle.dump(model, file)
+    except Exception as e:
+        raise e
+
+
+def load_model() -> XGBRegressor:
+    """Loads Paths.MODEL, if it exists, otherwise the model building process is
+    initiated, which trains, validates, and tunes an XGBRegressor on the latest
+    data, saves it to Paths.MODEL, and returns it as a Python object.
+
+    Returns:
+        XGBRegressor: Trained model.
+    """
+    try:
+        # load Paths.MODEL, if it exits, otherwise start the model building process
+        if Paths.MODEL.exists():
+            with open(Paths.MODEL, "rb") as file:
+                model: XGBRegressor = pickle.load(file)
+        else:
+            logger.info(
+                f"~/{Paths.MODEL.parent.name}/{Paths.MODEL.name} not found. Starting the model \
+building process."
+            )
+            data: pl.DataFrame = pl.read_parquet(Paths.DATA)
+            model = data.pipe(transform_data).pipe(build_model)
+            model = data.pipe(tune_model, model)
+            save_model(model)
+        return model
+    except Exception as e:
+        raise e
+
+
+# --------------------------------------------------------------------------------------------------
+# Inference-related utility functions
+# --------------------------------------------------------------------------------------------------
+@logger.catch
+def generate_one_step_forecast(
+    data: pl.DataFrame,
+    target_col: str = data_config.target_column,
+    temporal_col: str = data_config.temporal_column
+) -> pl.DataFrame:
+    """Returns a pl.DataFrame that contains each location IDs's one-step forecast, that is,
+    the predicted taxi demand one hour into the future.
+
+    Args:
+        data (pl.DataFrame): DataFrame that contains lag features, average lag features,
+        datetime features, and the corresponding target.
+        target_col (str, optional): Name of the target variable.
+        Defaults to data_config.target_column.
+        temporal_col (str, optional): Name of the column that contains the datetime objects.
+        Defaults to data_config.temporal_column.
+
+    Returns:
+        pl.DataFrame: DataFrame that contains each location ID's one-step (one-hour) forecast.
+    """
+    try:
+        logger.info("Generating the one-step forecast.")
+        # load the model
+        model: XGBRegressor = load_model()
+
+        # a list containing the names of the features
+        features: list[str] = data.drop(data_config.columns).columns
+
+        # a dictionary that maps each location ID to its latest datetime
+        latest_datetimes: dict[int, datetime] = {
+            location_id: data.filter(pl.col("location_id").eq(location_id))[temporal_col].max()
+            for location_id in sorted(data["location_id"].unique())
+        }
+
+        # an empty list to store each location ID's one-step forecast
+        dfs: list[pl.DataFrame] = []
+        for location_id, dt in tqdm(latest_datetimes.items(), unit="Location ID"):
+            x: pl.DataFrame = data.filter(
+                pl.col("location_id").eq(location_id)
+                & pl.col(temporal_col).eq(dt)
+            )
+
+            # datetime features
+            pickup_time, hour, time_of_day = (
+                x
+                .with_columns(
+                    pl.col(temporal_col) + timedelta(hours=1)
+                )
+                .with_columns(
+                    pl.col(temporal_col)
+                    .dt.convert_time_zone(time_zone="UTC")
+                    .dt.convert_time_zone(time_zone="EST")
+                    .dt.hour()
+                    .cast(pl.Int32)
+                    .alias("hour")
+                )
+                .with_columns(
+                    pl.when(pl.col("hour").ge(5) & pl.col("hour").lt(12)).then(1)
+                    .when(pl.col("hour").ge(12) & pl.col("hour").lt(17)).then(2)
+                    .when(pl.col("hour").ge(17) & pl.col("hour").lt(21)).then(3)
+                    .otherwise(4)
+                    .alias("time_of_day")
+                )
+                .select([temporal_col, "hour", "time_of_day"])
+                .to_dicts()[0]
+                .values()
+            )
+
+            # lag features
+            max_lag: int = max(int(col.split("_")[-1]) for col in features if col.startswith("lag"))
+            lags: list[int] = (
+                x
+                .select([col for col in features if col.startswith("lag")] + [target_col])
+                .drop(f"lag_{max_lag}")
+                .transpose()
+                .to_series()
+                .to_list()
+            )
+
+            # average lag features
+            start = step = max_lag // len([col for col in x.columns if col.startswith("avg")])
+            avg_lags: list[float] = [
+                np.mean(lags[-lag:]) for lag in reversed(range(start, max_lag + 1, step))
+            ]
+
+            # horizontally concatenate the datetime features, average lag features, and lag features
+            x = (
+                pl.Series([hour, time_of_day] + avg_lags + lags, dtype=pl.Float32) # (D,)
+                .to_frame() # (D, 1)
+                .transpose(column_names=features) # (1, D)
+                .cast(dict(zip(
+                    [col for col in features if not col.startswith("avg")],
+                    [pl.Int32] * len([col for col in features if not col.startswith("avg")])
+                )))
+            )
+
+            # add the location ID, pickup time, and one-step forecast
+            x = (
+                x
+                .with_columns(
+                    location_id=location_id,
+                    temporal_col=pickup_time,
+                    forecast=max(0, int(round(model.predict(x)[0])))
+                )
+                .rename({"temporal_col": temporal_col})
+                .select(data.drop(target_col).columns + ["forecast"])
+            )
+
+            # append the one-step forecast to the 'dfs' list
+            dfs.append(x)
+        return pl.concat(dfs, how="vertical")
     except Exception as e:
         raise e
