@@ -1,4 +1,4 @@
-.PHONY: venv install check clean features train feature_pipeline
+.PHONY: venv install check clean features train
 
 venv: pyproject.toml
 	uv venv
@@ -21,16 +21,3 @@ features:
 
 train:
 	uv run python src/pipelines/train.py
-
-feature_pipeline:
-	dvc pull
-	make features
-	git config user.name "github-actions"
-	git config user.email "github-actions@github.com"
-	dvc add ./artifacts
-	git add artifacts.dvc
-	git commit -m "executing the feature pipeline"
-	dvc push
-	git push
-	make clean
-	rm -rf artifacts
