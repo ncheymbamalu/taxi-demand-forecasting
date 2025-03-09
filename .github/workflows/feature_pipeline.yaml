@@ -63,7 +63,7 @@ jobs:
       - name: Check for changes
         id: dvc-check
         run: |
-          dvc status --quiet || echo "CHANGES==true" >> $GITHUB_ENV
+          dvc status --quiet || echo "CHANGES=true" >> $GITHUB_ENV
 
       - name: Commit and push changes
         if: env.CHANGES == 'true'
