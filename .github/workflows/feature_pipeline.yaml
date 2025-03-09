@@ -56,7 +56,23 @@ jobs:
           git config user.email "github-actions@github.com"
 
       - name: Execute pipeline
-        run: make feature_pipeline
+        run: |
+          dvc pull
+          make features
+
+      - name: Check for changes
+        id: dvc-check
+        run: |
+          dvc status --quiet || echo "CHANGES==true" >> $GITHUB_ENV
+
+      - name: Commit and push changes
+        if: env.CHANGES == 'true'
+        run: |
+          dvc add ./artifacts
+          git add artifacts.dvc
+          git commit -m "executing the feature pipeline"
+          dvc push
+          git push
 
       - name: Clean up repo
         run: |
