@@ -50,29 +50,13 @@ jobs:
           gdrive_service_account_json_file_path
           credentials.json
 
-      - name: Execute pipeline
-        run: |
-          dvc pull
-          make train
-
       - name: Configure git
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
-      - name: Check for changes
-        id: git-check
-        run: |
-          dvc add ./artifacts
-          git add artifacts.dvc
-          git diff --staged --quiet || echo "CHANGES==true" >> $GITHUB_ENV
-
-      - name: Commit and push changes
-        if: env.CHANGES == 'true'
-        run: |
-          git commit -m "executing the training pipeline"
-          dvc push
-          git push
+      - name: Execute pipeline
+        run: make training_pipeline
 
       - name: Clean up repo
         run: |
