@@ -9,11 +9,13 @@ from functools import partial
 import httpx
 import matplotlib.pyplot as plt
 import numpy as np
+import plotly.express as px
 import polars as pl
 
 from httpx import Response
 from hyperopt import STATUS_OK, Trials, fmin, hp, tpe
 from hyperopt.pyll.base import Apply
+from plotly.graph_objects import Figure
 from sklearn.feature_selection import mutual_info_regression
 from tqdm import tqdm
 from xgboost import XGBRegressor
@@ -729,5 +731,75 @@ def generate_one_step_forecast(
             # append the one-step forecast to the 'dfs' list
             dfs.append(x)
         return pl.concat(dfs, how="vertical")
+    except Exception as e:
+        raise e
+
+
+def plot_record(
+    data: pl.DataFrame,
+    location_id: int,
+    target_col: str = data_config.target_column,
+    temporal_col: str = data_config.temporal_column,
+    plot_forecast: bool = False
+) -> Figure:
+    """Plots the lag features, target, and one-step forecast for the input location ID. 
+
+    Args:
+        data (pl.DataFrame): DataFrame that contains at minimum, the temporal column,
+        lag features, and the target column. The one-step forecast is optional.
+        location_id (int): Input location ID.
+        target_col (str, optional): Name of the target variable.
+        Defaults to data_config.target_column.
+        temporal_column (str, opitonal): Name of the column that contains the datetime objects.
+        Defaults to data_config.temporal_column.
+        plot_forecast (bool, optional): Boolean that determines if the one-step forecast
+        is plotted. Defaults to False.
+
+    Returns:
+        Figure: Plotly object.
+    """
+    try:
+        data = data.filter(pl.col("location_id").eq(location_id))
+        lag_features: list[str] = [col for col in data.columns if col.startswith("lag")]
+        end: datetime = data[0, temporal_col]
+        lag_datetimes: list[datetime] = [
+            end - timedelta(hours=lag) for lag in reversed(range(1, len(lag_features) + 1))
+        ]
+
+        # instantiate an object of type, 'Figure', with the lag features
+        fig: Figure = px.line(
+            x=lag_datetimes,
+            y=data.select(lag_features).transpose().to_series().to_list(),
+            color_discrete_sequence=["blue"],
+            labels={"x": "Pick-up time (UTC)", "y": "Number of taxi rides"},
+            template="plotly_dark",
+            markers=True,
+            title=f"Location ID: {location_id}, Pick-Up Time: {end}"
+        )
+
+        # add the target to the 'fig' object
+        fig.add_scatter(
+            x=[end],
+            y=(
+                data.select(target_col).to_series().to_list() if target_col in data.columns
+                else data.select("forecast").to_series().to_list()
+            ),
+            line_color="green",
+            mode="markers",
+            marker_size=10,
+            name="Target" if target_col in data.columns else "Forecast"
+        )
+
+        # add the one-step forecast to the 'fig' object
+        if plot_forecast:
+            fig.add_scatter(
+                x=[end],
+                y=data.select("forecast").to_series().to_list(),
+                line_color="red",
+                mode="markers",
+                marker_size=10,
+                name="Forecast"
+            )
+        return fig
     except Exception as e:
         raise e
