@@ -28,8 +28,8 @@ feature_pipeline:
 	dvc add ./artifacts
 	git add artifacts.dvc
 	git commit -m "executing the feature pipeline"
-    dvc push
-    git push
+	dvc push
+	git push
 
 training_pipeline:
 	dvc pull
@@ -37,5 +37,5 @@ training_pipeline:
 	dvc add ./artifacts
 	git add artifacts.dvc
 	git commit -m "executing the training pipeline"
-    dvc push
-    git push
+	dvc push
+	git push
