@@ -1,4 +1,4 @@
-"""This function contains utility/helper functions."""
+"""This module contains utility/helper functions."""
 
 import os
 import pickle
