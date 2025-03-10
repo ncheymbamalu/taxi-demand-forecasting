@@ -10,10 +10,11 @@ from src.utils import fetch_data
 
 def main() -> None:
     """Fetches raw data from the NYC taxi data API, then pre-processes, validates, and
-    concatenates it with the previously processed data. Then, updates Paths.DATA with
+    concatenates it with previously processed data. Finally, Paths.DATA is updated with
     the concatenated data.
     """
     try:
+        temporal_col: str = data_config.temporal_column
         end: datetime = (
             datetime
             .now(timezone.utc)
@@ -38,17 +39,17 @@ def main() -> None:
         data: pl.DataFrame = (
             pl.concat(dfs, how="vertical")
             .filter(
-                pl.col("pickup_time").ge(start)
-                & pl.col("pickup_time").le(end)
+                pl.col(temporal_col).ge(start)
+                & pl.col(temporal_col).le(end)
             )
             .with_columns(
-                pl.col("pickup_time") + timedelta(days=366)
+                pl.col(temporal_col) + timedelta(days=366)
             )
         )
         (
             pl.concat((pl.read_parquet(Paths.DATA), data), how="vertical")
-            .sort(by=["location_id", "pickup_time"])
-            .unique(subset=["location_id", "pickup_time"], keep="first", maintain_order=True)
+            .sort(by=["location_id", temporal_col])
+            .unique(subset=["location_id", temporal_col], keep="first", maintain_order=True)
             .write_parquet(Paths.DATA)
         )
     except Exception as e:
