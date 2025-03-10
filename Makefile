@@ -17,13 +17,14 @@ clean:
 	rm -rf logs
 
 features:
+	dvc pull
 	uv run python src/pipelines/feature.py
 
 train:
+	dvc pull
 	uv run python src/pipelines/train.py
 
 feature_pipeline:
-	dvc pull
 	make features
 	dvc add ./artifacts
 	git add artifacts.dvc
@@ -32,7 +33,6 @@ feature_pipeline:
 	git push
 
 training_pipeline:
-	dvc pull
 	make train
 	dvc add ./artifacts
 	git add artifacts.dvc

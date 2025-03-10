@@ -56,9 +56,7 @@ jobs:
           git config user.email "github-actions@github.com"
 
       - name: Execute pipeline
-        run: |
-          dvc pull
-          make train
+        run: make train
 
       - name: Check for changes
         id: dvc-check
