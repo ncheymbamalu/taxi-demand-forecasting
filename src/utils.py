@@ -246,8 +246,8 @@ def select_features(
     Args:
         data (pl.DataFrame): DataFrame that contains lag features, average lag features,
         datetime features, and the target.
-        threshold (float): Percentile threshold that's used as a filter to identify the
-        most relevant features.
+        threshold (float): Number between 0 and 1, inclusive, that's used as a filter to
+        select the most relevant features.
         target_col (str, optional): Name of the target variable.
         Defaults to data_config.target_column.
 
@@ -264,7 +264,7 @@ def select_features(
                 "mutual_info": (scores - scores.min()) / (scores.max() - scores.min())
             })
             .filter(
-                pl.col("mutual_info").gt(pl.col("mutual_info").quantile(threshold))
+                pl.col("mutual_info").ge(pl.col("mutual_info").quantile(threshold))
             )
             .sort(by="mutual_info", descending=True)
             .select("feature")
