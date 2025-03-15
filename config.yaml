@@ -15,3 +15,9 @@ model:
     eval_metric: rmse
     early_stopping_rounds: 50
     n_jobs: -1
+  hyperparams:
+    - n_estimators
+    - max_depth
+    - learning_rate
+    - min_child_weight
+    - reg_alpha

@@ -11,6 +11,7 @@ from src.utils import (
     compute_metrics,
     generate_one_step_forecast,
     save_model,
+    save_model_metadata,
     split_data,
     transform_data,
     tune_model,
@@ -53,8 +54,9 @@ def main() -> None:
             logger.info("The current model is fine.")
         else:
             logger.info("The current model is unsatisfactory and will be replaced.")
-            model: XGBRegressor = tune_model(data, build_model(data))
+            model, metric = tune_model(data, build_model(data))
             save_model(model)
+            save_model_metadata(model, metric)
     except Exception as e:
         raise e
 

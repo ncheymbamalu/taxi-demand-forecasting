@@ -3,8 +3,10 @@
 import os
 import pickle
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import partial
+from pathlib import PosixPath
+from typing import Any
 
 import httpx
 import matplotlib.pyplot as plt
@@ -15,6 +17,7 @@ import polars as pl
 from httpx import Response
 from hyperopt import STATUS_OK, Trials, fmin, hp, tpe
 from hyperopt.pyll.base import Apply
+from omegaconf import OmegaConf
 from plotly.graph_objects import Figure
 from sklearn.feature_selection import mutual_info_regression
 from tqdm import tqdm
@@ -472,7 +475,7 @@ def train_and_validate_model(
             model.fit(x_train, y_train, eval_set=[(x_val, y_val)], verbose=False)
             metric: float = compute_metrics(y_val, model.predict(x_val)).get("rmse")
             val_metrics.append(metric)
-        return model, np.mean(val_metrics)
+        return model, np.mean(val_metrics).item()
     except Exception as e:
         raise e
 
@@ -534,22 +537,21 @@ def hyperopt_objective(
 def tune_model(
     data: pl.DataFrame,
     model: XGBRegressor,
-    target_col: str = data_config.target_column,
     objective_function: hyperopt_objective.__class__ = hyperopt_objective
-) -> XGBRegressor:
-    """Returns a trained model with Bayesian-tuned hyperparameters.
+) -> tuple[XGBRegressor, float]:
+    """Returns a trained model with Bayesian-tuned hyperparameters and its corresponding
+    average validation RMSE.
 
     Args:
         data (pl.DataFrame): DataFrame that contains lag features, average lag features,
         datetime features, and the target.
         model (XGBRegressor): Trained model with default hyperparameters.
-        target_col (str, optional): Name of the target variable.
-        Defaults to data_config.target_column.
         objective_function (hyperopt_objective.__class__, optional): User-defined objective
         function. Defaults to hyperopt_objective.
 
     Returns:
-        XGBRegressor: Trained model with Bayesian-tuned hyperparameters.
+        tuple[XGBRegressor, float]: Trained model with Bayesian-tuned hyperparameters and its
+        average validation RMSE.
     """
     try:
         logger.info(f"Hyperparameter tuning initiated for the {model.__class__.__name__}.")
@@ -568,11 +570,9 @@ def tune_model(
             trials=Trials(),
             verbose=1
         )
-        model = XGBRegressor(**tuned_params)
-        features: list[str] = data.drop(data_config.columns).columns
-        model.fit(data.select(features), data[target_col])
+        model, metric = train_and_validate_model(data, XGBRegressor(**tuned_params))
         logger.info("Hyperparameter tuning complete.")
-        return model
+        return model, metric
     except Exception as e:
         raise e
 
@@ -590,13 +590,43 @@ def save_model(model: XGBRegressor) -> None:
         raise e
 
 
+def save_model_metadata(model: XGBRegressor, metric: float) -> None:
+    """Writes the model's metadata, that is, its tuned hyperparameters and corresponding
+    validation metric, to a YAML file.
+
+    Args:
+        model (XGBRegressor): Trained model with Bayesian-tuned hyperparameters.
+        metric: (float): The model's average validation RMSE.
+    """
+    try:
+        # a dictionary that contains the model's metadata
+        metadata: dict[str, Any] = {
+            "params": {
+                param: (value.item() if isinstance(value, (np.floating, np.integer)) else value)
+                for param, value in model.get_params().items()
+                if param in ["objective"] + model_config.hyperparams
+            },
+            "rmse": metric
+        }
+
+        # write the model's metadata to a YAML file.
+        metadata_dir: PosixPath = Paths.MODELS_METADATA_DIR
+        metadata_dir.mkdir(parents=True, exist_ok=True)
+        filename: str = f"{datetime.now(timezone.utc).strftime('%Y_%m_%d_%H_%M_%S')}.yaml"
+        with open(metadata_dir / filename, "w") as file:
+            OmegaConf.save(metadata, file)
+    except Exception as e:
+        raise e
+
+
 def load_model() -> XGBRegressor:
-    """Loads Paths.MODEL, if it exists, otherwise the model building process is
-    initiated, which trains, validates, and tunes an XGBRegressor on the latest
-    data, saves it to Paths.MODEL, and returns it as a Python object.
+    """Loads Paths.MODEL, if it exists, otherwise the model building process is initiated,
+    which trains, validates, and tunes an XGBRegressor on the latest data, saves it to
+    Paths.MODEL, saves its metadata as a YAML file to Paths.MODELS_METADATA_DIR, and returns
+    it as a Python object.
 
     Returns:
-        XGBRegressor: Trained model.
+        XGBRegressor: Trained model with Bayesian-tuned hyperparameters.
     """
     try:
         # load Paths.MODEL, if it exits, otherwise start the model building process
@@ -608,10 +638,10 @@ def load_model() -> XGBRegressor:
                 f"~/{Paths.MODEL.parent.name}/{Paths.MODEL.name} not found. Starting the model \
 building process."
             )
-            data: pl.DataFrame = pl.read_parquet(Paths.DATA)
-            model = data.pipe(transform_data).pipe(build_model)
-            model = data.pipe(tune_model, model)
+            data: pl.DataFrame = pl.read_parquet(Paths.DATA).pipe(transform_data)
+            model, metric = tune_model(data, build_model(data))
             save_model(model)
+            save_model_metadata(model, metric)
         return model
     except Exception as e:
         raise e

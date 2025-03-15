@@ -13,6 +13,7 @@ class Paths:
         LOGS_DIR (PosixPath): Logs directory, ./logs/.
         DATA_DIR (PosixPath): Data directory, ./artifacts/data/.
         MODELS_DIR (PosixPath): Models directory, ./artifacts/models/.
+        MODELS_METADATA_DIR (PosixPath) Models metadata directory ./artifacts/models/metadata/.
         DATA (PosixPath): Processed data file path, ./artifacts/data/data.parquet.
         MODEL (PosixPath): Trained ML file path, ./artifacts/models/model.pkl.
         ENV (PosixPath): .env file path, ./.env.
@@ -23,6 +24,7 @@ class Paths:
     LOGS_DIR: PosixPath = PROJECT_DIR / "logs"
     DATA_DIR: PosixPath = PROJECT_DIR / "artifacts" / "data"
     MODELS_DIR: PosixPath = PROJECT_DIR / "artifacts" / "models"
+    MODELS_METADATA_DIR: PosixPath = MODELS_DIR / "metadata"
     DATA: PosixPath = DATA_DIR / "data.parquet"
     MODEL: PosixPath = MODELS_DIR / "model.pkl"
     ENV: PosixPath = PROJECT_DIR / ".env"
