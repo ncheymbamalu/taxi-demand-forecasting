@@ -2,8 +2,6 @@
 
 import polars as pl
 
-from xgboost import XGBRegressor
-
 from src.config import Paths, data_config
 from src.logger import logger
 from src.utils import (
