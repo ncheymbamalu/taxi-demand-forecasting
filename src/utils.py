@@ -28,7 +28,7 @@ from src.logger import logger
 
 
 # --------------------------------------------------------------------------------------------------
-# Data-related utility functions
+# Data utility functions
 # --------------------------------------------------------------------------------------------------
 @logger.catch
 def fetch_data(year: int, month: int) -> pl.DataFrame:
@@ -276,7 +276,7 @@ def select_features(
 
 
 # --------------------------------------------------------------------------------------------------
-# Model-related utility functions
+# Model building utility functions
 # --------------------------------------------------------------------------------------------------
 def compute_metrics(y: np.ndarray | pl.Series, yhat: np.ndarray | pl.Series) -> dict[str, float]:
     """Computes the root mean squared error, RMSE, and coefficient of
@@ -648,7 +648,7 @@ building process."
 
 
 # --------------------------------------------------------------------------------------------------
-# Inference-related utility functions
+# Inference utility functions
 # --------------------------------------------------------------------------------------------------
 @logger.catch
 def generate_one_step_forecast(
@@ -671,7 +671,6 @@ def generate_one_step_forecast(
         pl.DataFrame: DataFrame that contains each location ID's one-step (one-hour) forecast.
     """
     try:
-        logger.info("Generating the one-step forecast.")
         # load the model
         model: XGBRegressor = load_model()
 
@@ -765,6 +764,44 @@ def generate_one_step_forecast(
         raise e
 
 
+def generate_multi_step_forecast(
+    data: pl.DataFrame,
+    forecast_horizon: int,
+    target_col: str = data_config.target_column,
+    temporal_col: str = data_config.temporal_column
+) -> pl.DataFrame:
+    """Returns a pl.DataFrame that contains a multi-step forecast for each location ID.
+
+    Args:
+        data (pl.DataFrame): DataFrame that contains lag features, average lag features,
+        datetime features, and the corresponding target.
+        forecast_horizon (int, optional): Number of time steps to forecast.
+        target_col (str, optional): Name of the target variable.
+        Defaults to data_config.target_column.
+        temporal_col (str, optional): Name of the column that contains the datetime objects.
+        Defaults to data_config.temporal_column.
+
+    Returns:
+        pd.DataFrame: DataFrame that contains each location ID's multi-step (multi-hour) forecast.
+    """
+    try:
+        logger.info(f"Generating each location ID's {forecast_horizon}-hour forecast.")
+        dfs: list[pl.DataFrame] = [
+            data.pipe(generate_one_step_forecast).rename({"forecast": target_col})
+        ]
+        for idx in range(forecast_horizon - len(dfs)):
+            dfs.append(
+                dfs[idx].pipe(generate_one_step_forecast).rename({"forecast": target_col})
+            )
+        return (
+            pl.concat(dfs, how="vertical")
+            .rename({target_col: "forecast"})
+            .sort(by=["location_id", temporal_col])
+        )
+    except Exception as e:
+        raise e
+
+
 def plot_record(
     data: pl.DataFrame,
     location_id: int,
@@ -831,5 +868,85 @@ def plot_record(
                 name="Forecast"
             )
         return fig
+    except Exception as e:
+        raise e
+
+
+# --------------------------------------------------------------------------------------------------
+# Model evaluation utility functions
+# --------------------------------------------------------------------------------------------------
+def evaluate_model(
+    target_col: str = data_config.target_column,
+    temporal_col: str = data_config.temporal_column
+) -> bool:
+    """Evaluates the current model on the latest data by comparing its forecast to the naive
+    forecast across different horizons. 
+
+    Args:
+        target_col (str, optional): Name of the target variable.
+        Defaults to data_config.target_column.
+        temporal_col (str, optional): Name of the column that contains the datetime objects.
+        Defaults to data_config.temporal_column.
+
+    Returns:
+        bool: Boolean that indicates if the current model is fine. 
+    """
+    try:
+        # load and transform the data into features and targets
+        data: pl.DataFrame = pl.read_parquet(Paths.DATA).pipe(transform_data)
+
+        # two empty lists to store the forecasting metrics
+        model_metrics: list[float] = []
+        naive_metrics: list[float] = []
+        for eval_size in range(1, model_config.test_size + 1):
+            # split the data into a train and evaluation set
+            train_data, eval_data = data.pipe(split_data, eval_size)
+
+            # create a dictionary that maps each location ID to its last known train set value
+            naive_forecast: dict[int, int] = (
+                train_data
+                .select(["location_id", temporal_col, target_col])
+                .join(
+                    other=(
+                        train_data
+                        .group_by("location_id", maintain_order=True)
+                        .agg(pl.col(temporal_col).max())
+                    ),
+                    how="inner",
+                    on=["location_id", temporal_col]
+                )
+                .to_pandas()
+                .set_index("location_id")
+                [target_col]
+                .to_dict()
+            )
+
+            # update the evaluation set to include the model's forecast and naive forecast
+            eval_data = (
+                train_data
+                .pipe(generate_multi_step_forecast, eval_size)
+                .with_columns(
+                    pl.col("location_id")
+                    .map_elements(
+                        lambda location_id: naive_forecast.get(location_id), return_dtype=pl.Int32
+                    )
+                    .alias("naive_forecast")
+                )
+                .select(["location_id", temporal_col, "naive_forecast", "forecast"])
+                .join(
+                    other=eval_data.select(["location_id", temporal_col, target_col]),
+                    how="left",
+                    on=["location_id", temporal_col]
+                )
+            )
+
+            # compute the forecasting metrics and append them to their respective lists
+            model_metrics.append(
+                compute_metrics(eval_data[target_col], eval_data["forecast"]).get("r2")
+            )
+            naive_metrics.append(
+                compute_metrics(eval_data[target_col], eval_data["naive_forecast"]).get("r2")
+            )
+        return pl.Series(model_metrics).mean() > max(0.8, pl.Series(naive_metrics).mean())
     except Exception as e:
         raise e
