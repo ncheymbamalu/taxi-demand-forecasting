@@ -536,8 +536,7 @@ def hyperopt_objective(
 @logger.catch
 def tune_model(
     data: pl.DataFrame,
-    model: XGBRegressor,
-    objective_function: hyperopt_objective.__class__ = hyperopt_objective
+    model: XGBRegressor
 ) -> tuple[XGBRegressor, float]:
     """Returns a trained model with Bayesian-tuned hyperparameters and its corresponding
     average validation RMSE.
@@ -546,8 +545,6 @@ def tune_model(
         data (pl.DataFrame): DataFrame that contains lag features, average lag features,
         datetime features, and the target.
         model (XGBRegressor): Trained model with default hyperparameters.
-        objective_function (hyperopt_objective.__class__, optional): User-defined objective
-        function. Defaults to hyperopt_objective.
 
     Returns:
         tuple[XGBRegressor, float]: Trained model with Bayesian-tuned hyperparameters and its
@@ -563,14 +560,18 @@ def tune_model(
             "reg_alpha": hp.uniform("reg_alpha", 0, 10)
         }
         tuned_params: dict[str, float] = fmin(
-            fn=partial(objective_function, data=data, model=model),
+            fn=partial(hyperopt_objective, data=data, model=model),
             space=param_space,
             algo=tpe.suggest,
             max_evals=20,
             trials=Trials(),
             verbose=1
         )
-        model, metric = train_and_validate_model(data, XGBRegressor(**tuned_params))
+        default_params: dict[str, int | str] = OmegaConf.to_container(model_config.xgbregressor)
+        model, metric = train_and_validate_model(
+            data,
+            XGBRegressor(**(default_params | tuned_params))
+        )
         logger.info("Hyperparameter tuning complete.")
         return model, metric
     except Exception as e:
