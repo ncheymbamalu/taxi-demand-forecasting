@@ -79,6 +79,7 @@ def fetch_data(year: int, month: int) -> pl.DataFrame:
             data = (
                 pl.concat(dfs, how="vertical")
                 .unique(maintain_order=True, keep="first")
+                .with_columns(pl.col("pickup_time").dt.cast_time_unit("us"))  # NOTE: updated
             )
             assert data.is_duplicated().sum() == 0
             assert data.null_count().sum_horizontal()[0] == 0
