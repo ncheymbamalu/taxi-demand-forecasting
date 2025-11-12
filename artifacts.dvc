@@ -1,6 +1,6 @@
 outs:
-- md5: 312b00d485bac19310267136b18d60e3.dir
-  size: 10837185
+- md5: ddfa54deb1e9eb313b71a57a531f6104.dir
+  size: 10807776
   nfiles: 56
   hash: md5
   path: artifacts
