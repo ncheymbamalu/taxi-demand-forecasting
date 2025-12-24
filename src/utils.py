@@ -360,62 +360,35 @@ def plot_time_series_splits(
         # plot the location ID's k-fold walk-forward validation
         fig, ax = plt.subplots(k, figsize=(20, 14), sharex=True)
         fig.suptitle(f"NYC Hourly Taxi Demand, Location ID: {location_id}", fontsize=16)
+        fig.supxlabel("Pickup-time (UTC)", fontsize=12)
         for fold, (train_split, val_split) in enumerate(zip(train_splits, val_splits)):
-            y_label: str = "Number of taxi rides"
-            if fold == 0:
-                (
-                    data
-                    .filter(pl.col(temporal_col).le(train_split))
-                    .select([temporal_col, target_col])
-                    .to_pandas()
-                    .set_index(temporal_col)
-                    [target_col]
-                    .plot(ax=ax[fold], style="-", label="Train Set", color="black")
+            (
+                data
+                .filter(pl.col(temporal_col).le(train_split))
+                .select([temporal_col, target_col])
+                .to_pandas()
+                .set_index(temporal_col)
+                [target_col]
+                .plot(ax=ax[fold], style="-", label="Train Set", color="black")
+            )
+            (
+                data
+                .filter(
+                    pl.col(temporal_col).gt(train_split)
+                    & pl.col(temporal_col).le(val_split)
                 )
-                (
-                    data
-                    .filter(
-                        pl.col(temporal_col).gt(train_split)
-                        & pl.col(temporal_col).le(val_split)
-                    )
-                    .select([temporal_col, target_col])
-                    .to_pandas()
-                    .set_index(temporal_col)
-                    [target_col]
-                    .plot(ax=ax[fold], style="--", label="Validation Set", color="black")
-                )
-                ax[fold].axvline(train_split, color="red", lw=3, ls="--")
-                ax[fold].set_title(f"Fold {fold+1}")
-                ax[fold].set_ylabel(y_label)
-                ax[fold].grid(which="both", alpha=0.3)
-                ax[fold].legend(loc="best", frameon=True)
-            else:
-                (
-                    data
-                    .filter(pl.col(temporal_col).le(train_split))
-                    .select([temporal_col, target_col])
-                    .to_pandas()
-                    .set_index(temporal_col)
-                    [target_col]
-                    .plot(ax=ax[fold], style="-", label="Train Set", color="black")
-                )
-                (
-                    data
-                    .filter(
-                        pl.col(temporal_col).gt(train_split)
-                        & pl.col(temporal_col).le(val_split)
-                    )
-                    .select([temporal_col, target_col])
-                    .to_pandas()
-                    .set_index(temporal_col)
-                    [target_col]
-                    .plot(ax=ax[fold], style="--", label="Validation Set", color="black")
-                )
-                ax[fold].axvline(train_split, color="red", lw=3, ls="--")
-                ax[fold].set_title(f"Fold {fold+1}")
-                ax[fold].set_xlabel("Pickup-time (UTC)")
-                ax[fold].set_ylabel(y_label)
-                ax[fold].grid(which="both", alpha=0.3)
+                .select([temporal_col, target_col])
+                .to_pandas()
+                .set_index(temporal_col)
+                [target_col]
+                .plot(ax=ax[fold], style="--", label="Validation Set", color="black")
+            )
+            ax[fold].axvline(train_split, color="red", lw=3, ls="--")
+            ax[fold].set_title(f"Fold {fold + 1}")
+            ax[fold].set_xlabel(None)
+            ax[fold].set_ylabel("Number of taxi rides")
+            ax[fold].grid(which="both", alpha=0.3)
+            ax[fold].legend(loc="best", frameon=True)
         plt.tight_layout()
     except Exception as e:
         raise e
